@@ -54,3 +54,11 @@ tests/                   pytest
 ```
 python -m pytest tests
 ```
+
+## Build bản chạy độc lập (.exe)
+```
+build.bat
+```
+Script tạo icon, chạy test, build PyInstaller one-folder rồi nén thành `release\BestsellerCrawler-<version>.zip`.
+Người dùng cuối giải nén ở đâu cũng được rồi chạy `BestsellerCrawler.exe`; dữ liệu nằm trong thư mục `data` cạnh file exe.
+Đổi số phiên bản trong [app/app_version.py](app/app_version.py) trước khi build bản phát hành mới.
