@@ -1,0 +1,16 @@
+1, tool tự động lọc từ khoá và lấy ra tiêu đề, hình ảnh:
+
++ Cài đặt chế độ lọc start, sell one. tổng đơn có thể trống
++ cài đặt danh sách từ khoá
++ Cài vòng lặp số lần quét: 2 ngày 1 lần ... hoặc những ngày lẻ, những ngày chẵn
++ truy cập vào: watchcount.com lọc theo danh sách thông số mình cài
++ Lấy ra tất cả các sản phẩm
++ Lưu dữ liệu vào 3 cột từ khoá, tiêu đề, hình ảnh, kèm các thông số khác nếu có trả về dạng card. 
+
+Tool có thêm chế độ lọc theo các giá trị dữ liệu trả về: tổng đơn > xx, start > xx, chỉ số trung bình < xx
+
+lọc 
+start: >7 ngày so với hiện tại thì loại 
+chỉ số trung bình sell one: 7 / 3 / 1
+tổng đơn:
+
