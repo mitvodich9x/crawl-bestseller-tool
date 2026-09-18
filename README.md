@@ -55,6 +55,16 @@ tests/                   pytest
 python -m pytest tests
 ```
 
+## Cập nhật phiên bản
+App tự kiểm tra bản mới trên GitHub Releases mỗi lần mở, và có nút **Kiểm tra cập nhật** trong *Cài đặt quét*.
+Khi đồng ý, app tải file zip của bản mới, giải nén rồi một script phụ chờ app thoát, ghi đè file và mở lại app.
+Thư mục `data` (database, cài đặt, phiên đăng nhập watchcount) được giữ nguyên.
+
+Phát hành bản mới:
+1. Tăng `APP_VERSION` trong [app/app_version.py](app/app_version.py).
+2. `build.bat`
+3. Tạo release trên GitHub với tag `vX.Y.Z` và đính kèm file zip trong `release/`.
+
 ## Build bản chạy độc lập (.exe)
 ```
 build.bat

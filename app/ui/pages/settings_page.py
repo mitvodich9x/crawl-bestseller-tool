@@ -2,6 +2,7 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
                              QPushButton, QScrollArea, QSpinBox, QVBoxLayout, QWidget)
 
+from app.app_version import APP_VERSION
 from app.scraper import watchcount
 from app.ui.widgets.filter_editor import FilterEditor
 
@@ -10,6 +11,7 @@ class SettingsPage(QWidget):
     save_requested = pyqtSignal()
     login_requested = pyqtSignal()
     check_account_requested = pyqtSignal()
+    check_update_requested = pyqtSignal()
 
     def __init__(self, cfg: dict, parent=None):
         super().__init__(parent)
@@ -41,6 +43,23 @@ class SettingsPage(QWidget):
         acc_layout.addLayout(acc_buttons)
         acc_layout.addWidget(note)
         root.addWidget(account)
+
+        # version / update
+        version_box = QGroupBox("Phiên bản && cập nhật")
+        version_layout = QVBoxLayout(version_box)
+        self.version_label = QLabel(f"Phiên bản đang dùng: {APP_VERSION}")
+        self.update_label = QLabel("Chưa kiểm tra")
+        self.update_label.setObjectName("hint")
+        self.update_label.setWordWrap(True)
+        self.update_label.setOpenExternalLinks(True)
+        update_row = QHBoxLayout()
+        self.update_btn = QPushButton("Kiểm tra cập nhật")
+        update_row.addWidget(self.update_btn)
+        update_row.addStretch(1)
+        version_layout.addWidget(self.version_label)
+        version_layout.addLayout(update_row)
+        version_layout.addWidget(self.update_label)
+        root.addWidget(version_box)
 
         # search
         search = QGroupBox("Tìm kiếm trên watchcount")
@@ -110,6 +129,7 @@ class SettingsPage(QWidget):
         save_btn.clicked.connect(self.save_requested)
         self.login_btn.clicked.connect(self.login_requested)
         self.check_btn.clicked.connect(self.check_account_requested)
+        self.update_btn.clicked.connect(self.check_update_requested)
         self.load_from_config()
 
     def load_from_config(self) -> None:

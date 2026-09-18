@@ -3,7 +3,7 @@ import logging
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from app import browser_setup
+from app import browser_setup, update_service
 from app.core.scan_job import ScanCallbacks, run_scan
 from app.db.database import Database
 from app.paths import browser_profile_dir
@@ -45,6 +45,40 @@ class ScanWorker(QThread):
             log.exception("Scan worker crashed")
             self.log_line.emit(f"Lỗi: {exc}")
         self.done.emit(summary)
+
+
+class UpdateCheckWorker(QThread):
+    """Hỏi GitHub bản phát hành mới nhất. done: (ReleaseInfo | None, error str | None)."""
+
+    done = pyqtSignal(object, object)
+
+    def run(self) -> None:
+        try:
+            self.done.emit(update_service.fetch_latest(), None)
+        except Exception as exc:
+            log.info("Update check failed: %s", exc)
+            self.done.emit(None, str(exc))
+
+
+class UpdateDownloadWorker(QThread):
+    progress = pyqtSignal(int, int)  # bytes tải xong, tổng bytes
+    done = pyqtSignal(object, object)  # thư mục đã giải nén | None, lỗi | None
+
+    def __init__(self, release):
+        super().__init__()
+        self.release = release
+        self._stop = False
+
+    def stop(self) -> None:
+        self._stop = True
+
+    def run(self) -> None:
+        try:
+            zip_path = update_service.download_asset(self.release, self.progress.emit, lambda: self._stop)
+            self.done.emit(update_service.extract(zip_path), None)
+        except Exception as exc:
+            log.warning("Update download failed: %s", exc)
+            self.done.emit(None, str(exc))
 
 
 class AccountWorker(QThread):

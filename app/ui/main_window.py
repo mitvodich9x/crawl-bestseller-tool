@@ -4,10 +4,11 @@ from datetime import date, datetime
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction, QCloseEvent
-from PyQt6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QMainWindow, QMessageBox, QProgressBar,
-                             QPushButton, QStackedWidget, QSystemTrayIcon, QMenu, QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QMainWindow, QMenu, QMessageBox,
+                             QProgressBar, QProgressDialog, QPushButton, QStackedWidget, QSystemTrayIcon,
+                             QVBoxLayout, QWidget)
 
-from app import autostart, config
+from app import autostart, config, update_service
 from app.app_version import APP_NAME, APP_VERSION
 from app.core import scheduler
 from app.db.database import Database
@@ -17,7 +18,7 @@ from app.ui.pages.results_page import ResultsPage
 from app.ui.pages.schedule_page import SchedulePage
 from app.ui.pages.settings_page import SettingsPage
 from app.ui.style import app_icon
-from app.ui.workers import AccountWorker, ScanWorker
+from app.ui.workers import AccountWorker, ScanWorker, UpdateCheckWorker, UpdateDownloadWorker
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +32,9 @@ class MainWindow(QMainWindow):
         self.cfg = cfg
         self.scan_worker: ScanWorker | None = None
         self.account_worker: AccountWorker | None = None
+        self.update_check_worker: UpdateCheckWorker | None = None
+        self.update_download_worker: UpdateDownloadWorker | None = None
+        self._update_dialog: QProgressDialog | None = None
         self._quitting = False
         self._no_keyword_warned: str | None = None
 
@@ -86,6 +90,7 @@ class MainWindow(QMainWindow):
         self.settings_page.save_requested.connect(self._save_settings)
         self.settings_page.login_requested.connect(lambda: self._run_account("login"))
         self.settings_page.check_account_requested.connect(lambda: self._run_account("check"))
+        self.settings_page.check_update_requested.connect(lambda: self.check_update(silent=False))
         self.schedule_page.save_requested.connect(self._save_schedule)
 
         self._build_tray()
@@ -93,6 +98,7 @@ class MainWindow(QMainWindow):
         self._schedule_timer.timeout.connect(self._check_schedule)
         self._schedule_timer.start()
         QTimer.singleShot(5000, self._check_schedule)
+        QTimer.singleShot(8000, lambda: self.check_update(silent=True))
         self._sync_autostart()
 
     # ---- layout ---------------------------------------------------------------------------
@@ -200,6 +206,96 @@ class MainWindow(QMainWindow):
         self.settings_page.show_account(result)
         if result.get("logged_in"):
             self._log("Tài khoản watchcount: đã đăng nhập")
+
+    # ---- update ---------------------------------------------------------------------------
+
+    def check_update(self, silent: bool = True) -> None:
+        """silent=True: kiểm tra nền lúc mở app, chỉ báo khi có bản mới."""
+        if self.update_check_worker and self.update_check_worker.isRunning():
+            return
+        if not silent:
+            self.settings_page.update_btn.setEnabled(False)
+            self.settings_page.update_label.setText("Đang kiểm tra...")
+        self.update_check_worker = UpdateCheckWorker()
+        self.update_check_worker.done.connect(lambda release, error: self._on_update_checked(release, error, silent))
+        self.update_check_worker.start()
+
+    def _on_update_checked(self, release, error, silent: bool) -> None:
+        self.settings_page.update_btn.setEnabled(True)
+        if error:
+            if not silent:
+                self.settings_page.update_label.setText(f"❌ Không kiểm tra được: {error}")
+            return
+        if not update_service.is_newer(release.version):
+            self.settings_page.update_label.setText(f"✅ Đang dùng bản mới nhất ({APP_VERSION})")
+            return
+
+        link = f'<a href="{release.page_url}">{release.page_url}</a>'
+        self.settings_page.update_label.setText(f"🔔 Có bản mới: {release.version}. {link}")
+        if silent and not self.isVisible():
+            self.tray.showMessage(APP_NAME, f"Có bản cập nhật {release.version}. Mở app để cài.",
+                                  QSystemTrayIcon.MessageIcon.Information, 8000)
+            return
+
+        notes = (release.notes or "").strip()
+        if len(notes) > 1200:
+            notes = notes[:1200] + "..."
+        if not update_service.can_self_update():
+            QMessageBox.information(self, "Có bản cập nhật",
+                                    f"Bản mới: {release.version} (đang dùng {APP_VERSION}).\n\n"
+                                    f"Bản chạy từ source không tự cập nhật được, dùng git pull.\n{release.page_url}")
+            return
+        answer = QMessageBox.question(
+            self, "Có bản cập nhật",
+            f"Bản mới: {release.version} (đang dùng {APP_VERSION})\n"
+            f"Dung lượng tải: {release.asset_size / 1024 / 1024:.1f} MB\n\n{notes}\n\n"
+            "Tải và cài ngay? App sẽ tự mở lại sau khi cập nhật.\n"
+            "Dữ liệu, cài đặt và phiên đăng nhập watchcount được giữ nguyên.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if answer == QMessageBox.StandardButton.Yes:
+            self._download_update(release)
+
+    def _download_update(self, release) -> None:
+        if self._browser_busy():
+            QMessageBox.information(self, APP_NAME, "Đang quét, hãy chờ quét xong rồi cập nhật.")
+            return
+        self._update_dialog = QProgressDialog("Đang tải bản cập nhật...", "Huỷ", 0, 100, self)
+        self._update_dialog.setWindowTitle("Cập nhật")
+        self._update_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        self._update_dialog.setMinimumWidth(420)
+        self._update_dialog.setAutoClose(False)
+        self.update_download_worker = UpdateDownloadWorker(release)
+        self._update_dialog.canceled.connect(self.update_download_worker.stop)
+        self.update_download_worker.progress.connect(self._on_update_progress)
+        self.update_download_worker.done.connect(lambda folder, error: self._on_update_downloaded(folder, error))
+        self.update_download_worker.start()
+        self._update_dialog.show()
+
+    def _on_update_progress(self, done: int, total: int) -> None:
+        if not self._update_dialog:
+            return
+        mb = done / 1024 / 1024
+        if total:
+            self._update_dialog.setValue(int(done * 100 / total))
+            self._update_dialog.setLabelText(f"Đang tải bản cập nhật... {mb:.1f} / {total / 1024 / 1024:.1f} MB")
+        else:
+            self._update_dialog.setLabelText(f"Đang tải bản cập nhật... {mb:.1f} MB")
+
+    def _on_update_downloaded(self, folder, error) -> None:
+        if self._update_dialog:
+            self._update_dialog.close()
+            self._update_dialog = None
+        if error:
+            QMessageBox.warning(self, "Cập nhật", f"Không tải được bản cập nhật:\n{error}")
+            return
+        QMessageBox.information(self, "Cập nhật",
+                                "Đã tải xong. App sẽ đóng lại và tự mở lên sau vài giây.")
+        try:
+            update_service.apply_update(folder)
+        except Exception as exc:
+            QMessageBox.warning(self, "Cập nhật", f"Không chạy được bước thay file:\n{exc}")
+            return
+        self.quit_app()
 
     # ---- scanning -------------------------------------------------------------------------
 
