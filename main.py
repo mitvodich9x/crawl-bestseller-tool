@@ -29,7 +29,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
-from app import config
+from app import browser_setup, config
 from app.app_version import APP_ID, APP_NAME
 from app.db.database import Database
 from app.logging_setup import setup_logging
@@ -70,8 +70,44 @@ def _notify_running_instance() -> bool:
     return False
 
 
+def selftest_browser() -> int:
+    """`BestsellerCrawler.exe --selftest-browser`: kiểm tra trình duyệt trên máy người dùng.
+
+    Kết quả ghi ra data/logs/selftest.txt để gửi lại khi cần hỗ trợ.
+    """
+    from app.errors import friendly_error
+    from app.paths import browser_profile_dir
+    from app.scraper.watchcount import WatchcountClient
+
+    lines = [f"Thư mục trình duyệt: {browser_setup.browsers_dir()}",
+             f"PLAYWRIGHT_BROWSERS_PATH: {os.environ.get('PLAYWRIGHT_BROWSERS_PATH')}",
+             f"Đã có Chromium: {browser_setup.chromium_installed()}"]
+    code = 0
+    try:
+        if not browser_setup.chromium_installed():
+            ok, message = browser_setup.install_chromium()
+            lines.append(f"Tải Chromium: {message}")
+            if not ok:
+                raise RuntimeError(message)
+        with WatchcountClient(browser_profile_dir(), headless=True) as client:
+            lines.append("Mở trình duyệt: OK")
+            lines.append(f"Đăng nhập watchcount: {client.is_logged_in()}")
+    except Exception as exc:
+        lines.append(f"LỖI: {friendly_error(exc)}")
+        code = 1
+
+    report = "\n".join(lines)
+    (logs_dir() / "selftest.txt").write_text(report, encoding="utf-8")
+    print(report)
+    return code
+
+
 def main() -> int:
     setup_logging()
+    # máy người dùng có thể đã có sẵn PLAYWRIGHT_BROWSERS_PATH của tool khác -> ép về thư mục của app
+    browser_setup.configure_env()
+    if "--selftest-browser" in sys.argv:
+        return selftest_browser()
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setWindowIcon(app_icon())

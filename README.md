@@ -55,6 +55,14 @@ tests/                   pytest
 python -m pytest tests
 ```
 
+## Khi app báo lỗi trên máy người dùng
+- **"Chưa tải được trình duyệt Chromium"**: mở `BestsellerCrawler.exe --selftest-browser` (chạy trong cmd tại
+  thư mục app). Lệnh này in ra thư mục trình duyệt, tự tải nếu thiếu, và ghi kết quả vào `data\logs\selftest.txt`.
+- **"Watchcount yêu cầu đăng nhập"**: phiên đăng nhập hết hạn (khoảng một tuần). Vào *Cài đặt quét →
+  Đăng nhập watchcount*. Chưa đăng nhập thì watchcount đẩy sang trang xác minh và không quét được.
+- App luôn tự đặt `PLAYWRIGHT_BROWSERS_PATH` về `%LOCALAPPDATA%\ms-playwright`, nên máy có sẵn biến này
+  của tool khác (nhất là giá trị `0`) vẫn chạy bình thường.
+
 ## Cập nhật phiên bản
 App tự kiểm tra bản mới trên GitHub Releases mỗi lần mở, và có nút **Kiểm tra cập nhật** trong *Cài đặt quét*.
 Khi đồng ý, app tải file zip của bản mới, giải nén rồi một script phụ chờ app thoát, ghi đè file và mở lại app.

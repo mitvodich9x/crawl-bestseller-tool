@@ -7,6 +7,7 @@ from typing import Callable
 
 from app.core import filters
 from app.db.database import Database
+from app.errors import friendly_error
 from app.paths import browser_profile_dir
 from app.scraper import watchcount
 from app.scraper.parsing import parse_item
@@ -73,9 +74,10 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
         say("Đang mở trình duyệt...")
         client.start()
         account = client.account_status()
-        remaining = watchcount.remaining_quota(account["usage"], sort_by)
         if not account["logged_in"]:
-            say("⚠ Chưa đăng nhập watchcount: dùng hạn mức khách (ít lượt hơn). Vào Cài đặt để đăng nhập.")
+            # khách bị watchcount đẩy sang trang xác minh, quét tiếp chỉ tốn thời gian
+            raise watchcount.NeedLoginError(watchcount.NEED_LOGIN_MESSAGE)
+        remaining = watchcount.remaining_quota(account["usage"], sort_by)
         if remaining is None:
             say("Không đọc được hạn mức, quét tối đa theo cấu hình")
             remaining = len(keywords) * max_pages
@@ -143,16 +145,16 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
         cb.progress(total_keywords, total_keywords, "")
         if summary.status == "running":
             summary.status = "stopped" if cb.should_stop() else "completed"
-    except watchcount.NeedLoginError:
-        summary.status, summary.error = "need_login", "Watchcount yêu cầu đăng nhập cho kiểu sắp xếp này"
+    except watchcount.NeedLoginError as exc:
+        summary.status, summary.error = "need_login", str(exc) or watchcount.NEED_LOGIN_MESSAGE
         say(summary.error)
     except watchcount.BlockedError as exc:
         summary.status, summary.error = "blocked", f"{exc}. Thử tắt chế độ ẩn trình duyệt rồi quét lại."
         say(summary.error)
     except Exception as exc:  # keep the app alive and record the failure
         log.exception("Scan failed")
-        summary.status, summary.error = "failed", str(exc)
-        say(f"Lỗi: {exc}")
+        summary.status, summary.error = "failed", friendly_error(exc)
+        say(f"Lỗi: {summary.error}")
     finally:
         client.close()
         db.finish_run(summary.run_id, summary.status, summary.total_found, summary.total_kept,

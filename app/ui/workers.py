@@ -4,6 +4,7 @@ import logging
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from app import browser_setup, update_service
+from app.errors import friendly_error
 from app.core.scan_job import ScanCallbacks, run_scan
 from app.db.database import Database
 from app.paths import browser_profile_dir
@@ -13,6 +14,7 @@ log = logging.getLogger(__name__)
 
 
 def _ensure_chromium(emit) -> bool:
+    browser_setup.configure_env()
     if browser_setup.chromium_installed():
         return True
     emit("Đang tải trình duyệt Chromium lần đầu (~200MB), vui lòng chờ...")
@@ -111,7 +113,7 @@ class AccountWorker(QThread):
             result = client.account_status()
         except Exception as exc:
             log.warning("Account %s failed: %s", self.mode, exc)
-            result = {"error": str(exc)}
+            result = {"error": friendly_error(exc)}
         finally:
             if client:
                 client.close()

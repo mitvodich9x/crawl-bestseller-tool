@@ -190,6 +190,8 @@ class MainWindow(QMainWindow):
                     or (self.account_worker and self.account_worker.isRunning()))
 
     def _run_account(self, mode: str) -> None:
+        if mode == "login":
+            self.settings_page.account_label.setText("Đang mở trình duyệt để đăng nhập...")
         if self._browser_busy():
             QMessageBox.information(self, APP_NAME, "Trình duyệt đang được dùng (đang quét hoặc đăng nhập).")
             return
@@ -345,6 +347,22 @@ class MainWindow(QMainWindow):
         if summary is None:
             self.status_label.setText("Quét lỗi, xem Nhật ký")
             message = "Quét lỗi, xem Nhật ký"
+        elif summary.status == "need_login":
+            message = summary.error or "Watchcount yêu cầu đăng nhập"
+            self.status_label.setText(message)
+            self.results_page.refresh()
+            self.log_page.reload_runs()
+            if self.isVisible():
+                if QMessageBox.question(
+                        self, "Cần đăng nhập lại",
+                        f"{message}\n\nMở trình duyệt để đăng nhập ngay?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                ) == QMessageBox.StandardButton.Yes:
+                    self.nav.setCurrentRow(2)
+                    self._run_account("login")
+            else:
+                self.tray.showMessage(APP_NAME, message, QSystemTrayIcon.MessageIcon.Warning, 10000)
+            return
         else:
             message = (f"Xong: {summary.total_kept} sản phẩm đạt bộ lọc / {summary.total_found} tìm thấy, "
                        f"dùng {summary.pages_used} lượt")

@@ -11,6 +11,8 @@ from urllib.parse import quote
 from playwright.sync_api import BrowserContext, Page, Playwright, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
+from app import browser_setup
+
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://beta.watchcount.com"
@@ -40,6 +42,15 @@ _START_WITHIN = [
 ]
 
 _BLOCK_MARKERS = ("just a moment", "access denied", "verify you are human", "unusual traffic")
+
+# watchcount đẩy khách chưa đăng nhập sang trang xác minh này; đăng nhập là qua
+CHALLENGE_PATH = "/challenge"
+NEED_LOGIN_MESSAGE = ("Watchcount yêu cầu đăng nhập. Vào Cài đặt quét → "
+                      "Đăng nhập watchcount rồi quét lại.")
+
+
+def is_challenge_url(url: str | None) -> bool:
+    return CHALLENGE_PATH in (url or "")
 
 
 class WatchcountError(Exception):
@@ -120,7 +131,21 @@ class WatchcountClient:
         self.close()
 
     def start(self) -> None:
+        browser_setup.configure_env()
         self._pw = sync_playwright().start()
+        try:
+            self._launch()
+        except Exception as exc:
+            if "executable doesn't exist" not in str(exc).lower():
+                raise
+            # thiếu Chromium (máy mới, hoặc bản tải trước bị hỏng): tải lại rồi thử một lần nữa
+            log.warning("Chromium chưa sẵn sàng, tải lại: %s", exc)
+            ok, message = browser_setup.install_chromium()
+            if not ok:
+                raise WatchcountError(f"Không tải được trình duyệt Chromium: {message}") from exc
+            self._launch()
+
+    def _launch(self) -> None:
         self._ctx = self._pw.chromium.launch_persistent_context(
             self.profile_dir,
             headless=self.headless,
@@ -187,6 +212,8 @@ class WatchcountClient:
     def search(self, url: str, timeout_ms: int = 45000) -> dict:
         page = self.page
         page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+        if is_challenge_url(page.url):
+            raise NeedLoginError(NEED_LOGIN_MESSAGE)
         try:
             page.wait_for_function("() => window.searchResult !== undefined", timeout=timeout_ms)
         except PlaywrightTimeout as exc:

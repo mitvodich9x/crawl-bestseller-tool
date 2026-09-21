@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -9,6 +9,11 @@ from app.db.database import Database
 from app.scraper import watchcount
 from app.scraper.parsing import parse_item, parse_sold_per_day
 
+def iso_days_ago(days: float) -> str:
+    """Mốc thời gian tương đối để test không phụ thuộc ngày chạy."""
+    return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
+
+
 RAW = {
     "id": "237065838500",
     "title": "Funny Food Bikini T-Shirt",
@@ -16,7 +21,7 @@ RAW = {
     "quantitySold": 10,
     "oneUnitEvery": "5.0 sold/day",
     "quantitySoldRate": "150 sold per month",
-    "startTime": "2026-09-13T10:00:00Z",
+    "startTime": iso_days_ago(2),
     "watchCount": 12,
     "price": [19.99, 24.99],
     "priceFormatted": "$19.99 to $24.99",
@@ -25,7 +30,7 @@ RAW = {
     "seller": "shop",
     "timeRunning": 2.0,
 }
-NOW = datetime(2026, 9, 15, 10, 0, tzinfo=timezone.utc)
+NOW = datetime.now(timezone.utc)
 
 
 @pytest.mark.parametrize("text,expected", [
@@ -127,6 +132,32 @@ def test_remaining_quota_user_and_guest():
     assert watchcount.remaining_quota(user, "bestselling") == 2
     guest = {"max_standard": 20, "standard_count": 0}
     assert watchcount.remaining_quota(guest, "listdate") == 20
+
+
+@pytest.mark.parametrize("url,expected", [
+    ("https://beta.watchcount.com/challenge?returnURL=/live/cat+mug", True),
+    ("https://beta.watchcount.com/live/cat+mug/-/fixedprice?site=EBAY_US", False),
+    (None, False),
+])
+def test_is_challenge_url(url, expected):
+    assert watchcount.is_challenge_url(url) is expected
+
+
+def test_run_scan_stops_when_not_logged_in(tmp_path):
+    """Khách chưa đăng nhập bị watchcount đẩy sang trang xác minh -> dừng ngay, không tốn lượt."""
+
+    class GuestClient(FakeClient):
+        def account_status(self):
+            return {"logged_in": False, "usage": {}}
+
+    fake = GuestClient()
+    db = Database(tmp_path / "t.db")
+    summary = run_scan(db, _cfg(), ["a"], "manual", ScanCallbacks(), lambda: fake)
+    assert summary.status == "need_login"
+    assert "Đăng nhập watchcount" in summary.error
+    assert summary.pages_used == 0
+    assert fake.urls == []
+    assert db.list_runs()[0]["status"] == "need_login"
 
 
 class FakeClient:

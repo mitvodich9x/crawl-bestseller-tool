@@ -88,6 +88,29 @@ Hạn mức reset theo ngày tạo tài khoản (`resets_at`). Kiểm tra ngày 
   - **Best Match: 5/20 item có đơn**, trong đó có các item bán 5.0/day và 3.1/day giống top Best Selling.
 - `startTimeFrom` thỉnh thoảng trả về listing cũ hơn (vd 05-Aug-26), nên tool vẫn phải lọc lại start date.
 
+## Trang xác minh /challenge
+Khách **chưa đăng nhập** bị đẩy sang `https://beta.watchcount.com/challenge?returnURL=...` và trang này
+**không tự qua** dù chờ 60 giây, dù chạy ẩn hay hiện trình duyệt. Đăng nhập lại là hết ngay.
+Phiên đăng nhập có hạn (mất sau khoảng một tuần dù đã tích "Stay logged in"), nên tool kiểm tra
+trạng thái đăng nhập trước mỗi lần quét và dừng sớm với thông báo yêu cầu đăng nhập lại.
+
+## Thư mục trình duyệt của Playwright
+Playwright chọn thư mục theo biến môi trường `PLAYWRIGHT_BROWSERS_PATH`
+(xem `driver/package/lib/server/registry/index.js`):
+- `0` → tìm trong `<gói playwright>/driver/package/.local-browsers` (bản đóng gói **không** có sẵn ở đây)
+- có giá trị → dùng đúng đường dẫn đó
+- để trống → `%LOCALAPPDATA%\ms-playwright`
+
+Máy nào đã có sẵn biến này (do tool khác cài) sẽ làm app tìm sai chỗ và báo
+"Executable doesn't exist at ...\.local-browsers\chromium-1208\chrome-win64\chrome.exe".
+Vì vậy app luôn tự ấn định `PLAYWRIGHT_BROWSERS_PATH` về `%LOCALAPPDATA%\ms-playwright` lúc khởi động.
+
+Cấu trúc thư mục thật (tên thư mục con khác nhau giữa hai loại):
+```
+ms-playwright\chromium-1228\chrome-win64\chrome.exe
+ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-headless-shell.exe
+```
+
 ## Kết luận cho thiết kế
 1. Scraper dùng Playwright persistent profile trên `beta.watchcount.com`. User đăng nhập 1 lần trong profile đó.
 2. Lấy dữ liệu bằng `window.searchResult`, không cần selector DOM, nên không cần `extract_list.js`.
