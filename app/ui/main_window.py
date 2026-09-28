@@ -12,6 +12,7 @@ from app import autostart, config, update_service
 from app.app_version import APP_NAME, APP_VERSION
 from app.core import scheduler
 from app.db.database import Database
+from app.ui.pages.guide_page import GuidePage
 from app.ui.pages.keywords_page import KeywordsPage
 from app.ui.pages.log_page import LogPage
 from app.ui.pages.results_page import ResultsPage
@@ -75,9 +76,10 @@ class MainWindow(QMainWindow):
         self.settings_page = SettingsPage(cfg)
         self.schedule_page = SchedulePage(cfg)
         self.log_page = LogPage(db)
+        self.guide_page = GuidePage()
         for label, page in (("Kết quả", self.results_page), ("Từ khoá", self.keywords_page),
                             ("Cài đặt quét", self.settings_page), ("Lịch quét", self.schedule_page),
-                            ("Nhật ký", self.log_page)):
+                            ("Nhật ký", self.log_page), ("📖 Hướng dẫn", self.guide_page)):
             self.nav.addItem(label)
             wrapper = QWidget()
             wrapper_layout = QVBoxLayout(wrapper)
@@ -85,7 +87,8 @@ class MainWindow(QMainWindow):
             wrapper_layout.addWidget(page)
             self.stack.addWidget(wrapper)
         self.nav.currentRowChanged.connect(self._on_nav)
-        self.nav.setCurrentRow(0)
+        # lần đầu dùng (chưa có từ khoá nào) thì mở sẵn trang Hướng dẫn
+        self.nav.setCurrentRow(0 if db.list_keywords() else self.nav.count() - 1)
 
         self.settings_page.save_requested.connect(self._save_settings)
         self.settings_page.login_requested.connect(lambda: self._run_account("login"))

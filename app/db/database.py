@@ -12,8 +12,11 @@ from app.paths import data_file
 PRODUCT_COLUMNS = [
     "item_id", "title", "image_url", "item_url", "price", "price_text", "currency", "shipping",
     "total_sold", "one_unit_every", "sold_per_day", "days_per_sale", "sold_rate_text", "watchers",
-    "start_time", "seller", "category", "condition", "quantity_available", "est_sales", "raw_json",
+    "start_time", "seller", "category", "condition", "quantity_available", "est_sales",
+    "last_sold_at", "last_sold_price", "last_sold_price_text", "raw_json",
 ]
+# cột thêm sau bản đầu: DB cũ được bổ sung lúc mở
+_ADDED_PRODUCT_COLUMNS = {"last_sold_at": "TEXT", "last_sold_price": "REAL", "last_sold_price_text": "TEXT"}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS keywords (
@@ -39,7 +42,8 @@ CREATE TABLE IF NOT EXISTS products (
     price REAL, price_text TEXT, currency TEXT, shipping REAL,
     total_sold INTEGER, one_unit_every TEXT, sold_per_day REAL, days_per_sale REAL, sold_rate_text TEXT,
     watchers INTEGER, start_time TEXT, seller TEXT, category TEXT, condition TEXT,
-    quantity_available INTEGER, est_sales TEXT, raw_json TEXT,
+    quantity_available INTEGER, est_sales TEXT,
+    last_sold_at TEXT, last_sold_price REAL, last_sold_price_text TEXT, raw_json TEXT,
     first_seen TEXT NOT NULL, last_seen TEXT NOT NULL, last_run_id INTEGER
 );
 CREATE TABLE IF NOT EXISTS product_keywords (
@@ -75,6 +79,10 @@ class Database:
         self.path = Path(path) if path else data_file("bestseller.db")
         with closing(self._connect()) as conn, conn:
             conn.executescript(SCHEMA)
+            existing = {row["name"] for row in conn.execute("PRAGMA table_info(products)")}
+            for column, kind in _ADDED_PRODUCT_COLUMNS.items():
+                if column not in existing:
+                    conn.execute(f"ALTER TABLE products ADD COLUMN {column} {kind}")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=30)

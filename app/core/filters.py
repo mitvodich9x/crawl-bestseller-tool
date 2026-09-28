@@ -7,6 +7,7 @@ from app.scraper.parsing import parse_iso_utc
 
 FIELD_LABELS = {
     "start_age_days": "Start (số ngày từ lúc đăng)",
+    "last_sold_age_days": "Bán gần nhất (số ngày trước)",
     "total_sold": "Tổng đơn",
     "days_per_sale": "Sell one (số ngày bán 1 đơn)",
     "sold_per_day": "Số đơn trung bình / ngày",
@@ -46,13 +47,16 @@ class FilterRule:
         return self.value is not None
 
 
+_AGE_FIELDS = {"start_age_days": "start_time", "last_sold_age_days": "last_sold_at"}
+
+
 def field_value(product: dict, field: str, now: datetime | None = None) -> float | None:
-    if field == "start_age_days":
-        start = parse_iso_utc(product.get("start_time"))
-        if start is None:
+    if field in _AGE_FIELDS:
+        moment = parse_iso_utc(product.get(_AGE_FIELDS[field]))
+        if moment is None:
             return None
         now = now or datetime.now(timezone.utc)
-        return (now - start).total_seconds() / 86400
+        return (now - moment).total_seconds() / 86400
     value = product.get(field)
     return None if value is None else float(value)
 

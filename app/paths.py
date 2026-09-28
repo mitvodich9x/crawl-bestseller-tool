@@ -35,3 +35,13 @@ def logs_dir() -> Path:
     path = data_dir() / "logs"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def resource_dir() -> Path:
+    """File đóng gói kèm app (ảnh hướng dẫn...): nằm trong _internal ở bản build, trong thư mục app khi chạy source."""
+    base = getattr(sys, "_MEIPASS", None)
+    return Path(base) / "app" if base else Path(__file__).resolve().parent
+
+
+def guide_dir() -> Path:
+    return resource_dir() / "assets" / "guide"

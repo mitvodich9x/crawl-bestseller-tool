@@ -19,18 +19,37 @@ log = logging.getLogger(__name__)
 BASE_URL = "https://www.watchcount.com"
 PAGE_SIZE = 20
 
+# hai tab tìm kiếm của watchcount: /sold (sản phẩm đã có người mua) và /live (đang bán)
+STATUS_OPTIONS = {
+    "sold": "Search Sold (sản phẩm đã bán)",
+    "live": "Search Live (sản phẩm đang bán)",
+}
 SORT_OPTIONS = {
     "bestmatch": "Best Match (lượt standard / ngày)",
+    "price_asc": "Giá thấp → cao (lượt standard / ngày)",
+    "price_desc": "Giá cao → thấp (lượt standard / ngày)",
     "listdate": "Newly Listed (lượt standard / ngày)",
     "watchcount": "Watch Count (lượt most-watched / ngày)",
     "bestselling": "Best Selling (lượt best-selling / tháng)",
 }
+# tab Sold chỉ cho sắp xếp theo Best Match và giá
+SORTS_BY_STATUS = {
+    "sold": ["bestmatch", "price_asc", "price_desc"],
+    "live": list(SORT_OPTIONS),
+}
 # sort -> (params added to the URL, quota bucket)
 _SORT_PARAMS = {
     "bestmatch": ({"sortBy": "bestmatch"}, "standard"),
+    "price_asc": ({"sortBy": "price", "sortOrder": "asc"}, "standard"),
+    "price_desc": ({"sortBy": "price", "sortOrder": "desc"}, "standard"),
     "listdate": ({"sortBy": "listdate", "sortOrder": "asc"}, "standard"),
     "watchcount": ({}, "most_watched"),  # site default, omitted from the URL
     "bestselling": ({"sortBy": "bestselling"}, "best_selling"),
+}
+# bộ lọc "Last sold date" của tab Sold
+LAST_SOLD_OPTIONS = {
+    "": "Không giới hạn", "1day": "1 ngày", "2days": "2 ngày", "3days": "3 ngày", "7days": "7 ngày",
+    "14days": "14 ngày", "30days": "30 ngày", "45days": "45 ngày", "60days": "60 ngày",
 }
 LISTING_TYPES = {"fixedprice": "Fixed-Price / BIN", "all": "Tất cả", "auction": "Đấu giá", "bestoffer": "Best Offer"}
 SITES = ["EBAY_US", "EBAY_GB", "EBAY_AU", "EBAY_CA", "EBAY_DE", "EBAY_FR", "EBAY_IT", "EBAY_ES"]
@@ -53,6 +72,20 @@ NEED_LOGIN_MESSAGE = ("Watchcount yêu cầu đăng nhập. Vào Cài đặt qu�
                       "Đăng nhập watchcount rồi quét lại.")
 CHALLENGE_MESSAGE = ("Watchcount yêu cầu xác minh reCAPTCHA. Trong cửa sổ trình duyệt, tích "
                      "\"I'm not a robot\" nếu được hỏi.")
+
+
+# dải hướng dẫn chèn vào trang xác minh khi cửa sổ đang hiện: trang trắng ~15 giây trước khi ô tích xuất hiện
+_CHALLENGE_BANNER_JS = """() => {
+  if (document.getElementById('bc-guide')) return;
+  const d = document.createElement('div');
+  d.id = 'bc-guide';
+  d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;padding:14px 18px;' +
+    'background:#1e3a8a;color:#fff;font:15px/1.5 Segoe UI,Arial,sans-serif;text-align:center';
+  d.innerHTML = '<b>Bestseller Crawler cần bạn xác minh</b><br>' +
+    'Chờ khoảng 15 giây cho ô <b>I&#39;m not a robot</b> hiện ra ở đầu trang, tích vào đó ' +
+    '(chọn ảnh nếu được hỏi). Xong tool tự quét tiếp, không cần đóng cửa sổ.';
+  document.body.appendChild(d);
+}"""
 
 
 def is_challenge_url(url: str | None) -> bool:
@@ -90,16 +123,25 @@ def _encode_segment(value: str) -> str:
     return quote(value, safe="").replace("%20", "+").replace("%2F", "%252F")
 
 
+def valid_sort(status: str, sort_by: str) -> str:
+    """Kiểu sắp xếp không có ở tab đang chọn thì về Best Match."""
+    return sort_by if sort_by in SORTS_BY_STATUS.get(status, SORTS_BY_STATUS["live"]) else "bestmatch"
+
+
 def build_search_url(keyword: str, site: str = "EBAY_US", sort_by: str = "bestmatch",
-                     listing_type: str = "fixedprice", start_within: str | None = None, offset: int = 0) -> str:
-    sort_params, _ = _SORT_PARAMS[sort_by]
+                     listing_type: str = "fixedprice", start_within: str | None = None, offset: int = 0,
+                     *, status: str = "live", last_sold_within: str | None = None) -> str:
+    status = status if status in STATUS_OPTIONS else "live"
+    sort_params, _ = _SORT_PARAMS[valid_sort(status, sort_by)]
     params = {"site": site, **sort_params}
     if start_within:
         params["startTimeFrom"] = start_within
+    if status == "sold" and last_sold_within:
+        params["lastSoldDate"] = last_sold_within
     if offset:
         params["offset"] = str(offset)
     query = "&".join(f"{k}={quote(str(v), safe='')}" for k, v in sorted(params.items()))
-    return f"{BASE_URL}/live/{_encode_segment(keyword.strip() or '-')}/-/{listing_type}?{query}"
+    return f"{BASE_URL}/{status}/{_encode_segment(keyword.strip() or '-')}/-/{listing_type}?{query}"
 
 
 def quota_bucket(sort_by: str) -> str:
@@ -225,7 +267,20 @@ class WatchcountClient:
 
     # ---- search ---------------------------------------------------------------------------
 
+    def _bring_window_to_front(self) -> None:
+        """Cửa sổ Chromium mở từ app hay nằm sau các cửa sổ khác; thu nhỏ rồi mở lại để Windows đưa nó lên trên."""
+        try:
+            session = self._ctx.new_cdp_session(self.page)
+            window_id = session.send("Browser.getWindowForTarget")["windowId"]
+            for state in ("minimized", "normal"):
+                session.send("Browser.setWindowBounds", {"windowId": window_id, "bounds": {"windowState": state}})
+            self.page.bring_to_front()
+        except Exception as exc:
+            log.info("Không đưa được cửa sổ trình duyệt lên trên: %s", exc)
+
     def _wait_challenge(self, timeout_s: float, should_stop) -> bool:
+        if not self.headless:
+            self._bring_window_to_front()
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline and not should_stop():
             try:
@@ -233,6 +288,8 @@ class WatchcountClient:
                     return False
                 if not is_challenge_url(self.page.url):
                     return True
+                if not self.headless:
+                    self.page.evaluate(_CHALLENGE_BANNER_JS)
             except Exception:
                 pass  # page is navigating
             time.sleep(1)

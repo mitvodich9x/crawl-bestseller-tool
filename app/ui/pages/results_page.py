@@ -20,6 +20,8 @@ SORTS = {
     "Tổng đơn cao nhất": lambda p: -(p.get("total_sold") or 0),
     "Bán nhanh nhất (sell one)": lambda p: p.get("days_per_sale") if p.get("days_per_sale") else float("inf"),
     "Mới đăng nhất": lambda p: -(datetime.fromisoformat(p["start_time"]).timestamp() if p.get("start_time") else 0),
+    "Bán gần đây nhất": lambda p: -(datetime.fromisoformat(p["last_sold_at"]).timestamp()
+                                    if p.get("last_sold_at") else 0),
     "Theo dõi nhiều nhất": lambda p: -(p.get("watchers") or 0),
     "Mới thấy gần đây": lambda p: -(datetime.fromisoformat(p["last_seen"]).timestamp() if p.get("last_seen") else 0),
 }

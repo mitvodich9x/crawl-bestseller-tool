@@ -22,7 +22,7 @@ a = Analysis(
     ["main.py"],
     pathex=[],
     binaries=binaries,
-    datas=datas,
+    datas=datas + [("app/assets/guide", "app/assets/guide")],
     hiddenimports=hiddenimports,
     hookspath=[],
     excludes=["tkinter", "matplotlib", "numpy", "pandas", "PyQt6.QtWebEngineCore", "PyQt6.Qt3DCore"],

@@ -10,8 +10,14 @@ run.bat            (hoặc: python main.py)
 Lần đầu tool tự tải Chromium cho Playwright (~200MB).
 
 ## Sử dụng
+Hướng dẫn đầy đủ, có ảnh minh hoạ, nằm ngay trong app: mục **📖 Hướng dẫn** ở thanh bên trái (mở sẵn khi chưa có từ khoá nào).
+Nội dung ở [app/assets/guide/guide.html](app/assets/guide/guide.html). Ảnh chụp lại bằng
+`python tools/make_guide_images.py` (chạy app ẩn với dữ liệu mẫu, cần mạng để tải ảnh sản phẩm).
+
 1. **Cài đặt quét**: bấm *Đăng nhập watchcount*, đăng nhập trong cửa sổ trình duyệt vừa mở, rồi *Kiểm tra tài khoản* để xem số lượt còn lại. Tool không lưu mật khẩu; phiên đăng nhập nằm trong `data/browser_profile`.
 2. **Từ khoá**: dán mỗi dòng một từ khoá, bật/tắt từng từ khoá.
+   **Tab tìm kiếm** (Cài đặt quét): mặc định **Search Sold** (chỉ listing đã có đơn, kèm ngày/giá bán gần nhất,
+   lọc "có đơn trong vòng N ngày"); **Search Live** để dùng Watch Count / Newly Listed / Best Selling.
 3. **Cài đặt quét → Bộ lọc khi quét**. Để trống ô nào thì không lọc theo ô đó.
    - *Start ≤ 7*: bỏ listing đăng quá 7 ngày. Điều kiện này cũng được gửi lên watchcount để tiết kiệm lượt.
    - *Sell one ≤ 7 / 3 / 1*: số ngày trung bình bán được 1 đơn, lấy từ trường "sold/day | week | month" của watchcount.

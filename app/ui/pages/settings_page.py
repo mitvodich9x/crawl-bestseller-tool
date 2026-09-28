@@ -64,11 +64,15 @@ class SettingsPage(QWidget):
         # search
         search = QGroupBox("Tìm kiếm trên watchcount")
         form = QFormLayout(search)
+        self.status = QComboBox()
+        for key, label in watchcount.STATUS_OPTIONS.items():
+            self.status.addItem(label, key)
+        self.last_sold = QComboBox()
+        for key, label in watchcount.LAST_SOLD_OPTIONS.items():
+            self.last_sold.addItem(label, key)
         self.site = QComboBox()
         self.site.addItems(watchcount.SITES)
         self.sort_by = QComboBox()
-        for key, label in watchcount.SORT_OPTIONS.items():
-            self.sort_by.addItem(label, key)
         self.listing_type = QComboBox()
         for key, label in watchcount.LISTING_TYPES.items():
             self.listing_type.addItem(label, key)
@@ -79,6 +83,8 @@ class SettingsPage(QWidget):
         self.delay_max = QDoubleSpinBox(minimum=0, maximum=300, decimals=1, suffix=" giây")
         self.reserve = QSpinBox(minimum=0, maximum=1000)
         self.headless = QCheckBox("Ẩn trình duyệt khi quét")
+        form.addRow("Tab tìm kiếm", self.status)
+        form.addRow("Có đơn trong vòng (tab Sold)", self.last_sold)
         form.addRow("eBay site", self.site)
         form.addRow("Sắp xếp", self.sort_by)
         form.addRow("Loại listing", self.listing_type)
@@ -89,8 +95,10 @@ class SettingsPage(QWidget):
         form.addRow("đến", self.delay_max)
         form.addRow("Chừa lại số lượt / ngày", self.reserve)
         form.addRow("", self.headless)
-        quota_note = QLabel("Mỗi trang kết quả tốn 1 lượt. Gói Free: 200 lượt standard/ngày (Best Match, Newly Listed), "
-                            "50 lượt Watch Count/ngày, 3 lượt Best Selling/tháng.")
+        quota_note = QLabel("Tab Sold chỉ hiện sản phẩm đã có người mua và chỉ sắp xếp được theo Best Match hoặc giá; "
+                            "Watch Count, Newly Listed, Best Selling chỉ có ở tab Live.\n"
+                            "Mỗi trang kết quả tốn 1 lượt. Gói Free: 200 lượt standard/ngày (Sold, Best Match, "
+                            "Newly Listed, giá), 50 lượt Watch Count/ngày, 3 lượt Best Selling/tháng.")
         quota_note.setObjectName("hint")
         quota_note.setWordWrap(True)
         form.addRow(quota_note)
@@ -126,16 +134,28 @@ class SettingsPage(QWidget):
         root.addStretch(1)
 
         self.take_all_pages.toggled.connect(lambda on: self.stop_after_empty.setEnabled(not on))
+        self.status.currentIndexChanged.connect(lambda _i: self._fill_sorts(self.sort_by.currentData()))
         save_btn.clicked.connect(self.save_requested)
         self.login_btn.clicked.connect(self.login_requested)
         self.check_btn.clicked.connect(self.check_account_requested)
         self.update_btn.clicked.connect(self.check_update_requested)
         self.load_from_config()
 
+    def _fill_sorts(self, selected: str | None) -> None:
+        """Mỗi tab chỉ cho một số kiểu sắp xếp; đổi tab thì nạp lại danh sách."""
+        status = self.status.currentData()
+        self.sort_by.clear()
+        for key in watchcount.SORTS_BY_STATUS[status]:
+            self.sort_by.addItem(watchcount.SORT_OPTIONS[key], key)
+        self.sort_by.setCurrentIndex(max(0, self.sort_by.findData(watchcount.valid_sort(status, selected or ""))))
+        self.last_sold.setEnabled(status == "sold")
+
     def load_from_config(self) -> None:
         s = self.cfg["search"]
+        self.status.setCurrentIndex(max(0, self.status.findData(s.get("status", "sold"))))
+        self.last_sold.setCurrentIndex(max(0, self.last_sold.findData(s.get("last_sold_within") or "")))
+        self._fill_sorts(s["sort_by"])
         self.site.setCurrentText(s["site"])
-        self.sort_by.setCurrentIndex(max(0, self.sort_by.findData(s["sort_by"])))
         self.listing_type.setCurrentIndex(max(0, self.listing_type.findData(s["listing_type"])))
         self.max_pages.setValue(int(s["max_pages"]))
         take_all = int(s["stop_after_empty_pages"]) <= 0
@@ -152,6 +172,8 @@ class SettingsPage(QWidget):
 
     def write_to_config(self) -> None:
         s = self.cfg["search"]
+        s["status"] = self.status.currentData()
+        s["last_sold_within"] = self.last_sold.currentData()
         s["site"] = self.site.currentText()
         s["sort_by"] = self.sort_by.currentData()
         s["listing_type"] = self.listing_type.currentData()

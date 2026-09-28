@@ -61,6 +61,11 @@ class ProductCard(QFrame):
             ("Theo dõi", f"{product.get('watchers') or 0}"),
             ("Giá", product.get("price_text") or "—"),
         ]
+        if product.get("last_sold_at"):  # sản phẩm quét từ tab Sold
+            rows += [
+                ("Bán gần nhất", _fmt_age(field_value(product, "last_sold_age_days"))),
+                ("Giá bán gần nhất", product.get("last_sold_price_text") or "—"),
+            ]
         for i, (label, value) in enumerate(rows):
             name = QLabel(label)
             name.setObjectName("statLabel")

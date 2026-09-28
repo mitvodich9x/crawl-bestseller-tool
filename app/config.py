@@ -12,6 +12,10 @@ log = logging.getLogger(__name__)
 
 DEFAULTS = {
     "search": {
+        # tab tìm kiếm của watchcount: sold (đã bán) | live (đang bán)
+        "status": "sold",
+        # tab Sold: chỉ lấy sản phẩm có đơn trong khoảng này ("" = không giới hạn)
+        "last_sold_within": "7days",
         "site": "EBAY_US",
         # bestmatch/listdate -> standard quota, watchcount -> most-watched quota, bestselling -> monthly quota
         "sort_by": "bestmatch",

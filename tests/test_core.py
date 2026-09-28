@@ -153,7 +153,7 @@ def test_run_scan_best_selling_needs_login(tmp_path):
     fake = GuestClient()
     db = Database(tmp_path / "t.db")
     cfg = _cfg()
-    cfg["search"]["sort_by"] = "bestselling"
+    cfg["search"].update(status="live", sort_by="bestselling")
     summary = run_scan(db, cfg, ["a"], "manual", ScanCallbacks(), lambda: fake)
     assert summary.status == "need_login"
     assert "Đăng nhập watchcount" in summary.error
@@ -308,4 +308,49 @@ def test_run_scan_spreads_quota_across_keywords(tmp_path):
     fake = FakeClient(quota=2)
     summary = run_scan(db, _cfg(), ["a", "b"], "manual", ScanCallbacks(), lambda: fake)
     assert summary.pages_used == 2
-    assert [u.split("/live/")[1].split("/")[0] for u in fake.urls] == ["a", "b"]
+    assert [u.split("/sold/")[1].split("/")[0] for u in fake.urls] == ["a", "b"]
+
+
+def test_default_scan_uses_sold_tab(tmp_path):
+    fake = FakeClient()
+    run_scan(Database(tmp_path / "t.db"), _cfg(), ["cat mug"], "manual", ScanCallbacks(), lambda: fake)
+    assert fake.urls[0] == ("https://www.watchcount.com/sold/cat+mug/-/fixedprice"
+                            "?lastSoldDate=7days&site=EBAY_US&sortBy=bestmatch&startTimeFrom=7days")
+
+
+def test_sold_tab_falls_back_to_best_match_for_live_only_sorts():
+    url = watchcount.build_search_url("x", sort_by="bestselling", status="sold")
+    assert "sortBy=bestmatch" in url and "/sold/" in url
+    assert watchcount.valid_sort("live", "bestselling") == "bestselling"
+    url = watchcount.build_search_url("x", sort_by="price_desc", status="sold", last_sold_within="30days")
+    assert url.endswith("?lastSoldDate=30days&site=EBAY_US&sortBy=price&sortOrder=desc")
+
+
+def test_live_tab_ignores_last_sold_filter():
+    url = watchcount.build_search_url("x", status="live", last_sold_within="7days")
+    assert "lastSoldDate" not in url and "/live/" in url
+
+
+def test_parse_sold_item_and_last_sold_filter():
+    raw = {**RAW, "lastSoldDate": iso_days_ago(2), "lastSoldFor": 25, "lastSoldForFormatted": "$25"}
+    p = parse_item(raw)
+    assert p["last_sold_price"] == 25.0 and p["last_sold_price_text"] == "$25"
+    assert filters.matches(p, [filters.FilterRule("last_sold_age_days", "<=", 3)])
+    assert not filters.matches(p, [filters.FilterRule("last_sold_age_days", "<=", 1)])
+    assert parse_item(RAW)["last_sold_at"] is None
+
+
+def test_database_adds_new_columns_to_old_db(tmp_path):
+    import sqlite3
+    path = tmp_path / "old.db"
+    with sqlite3.connect(path) as conn:
+        conn.execute("CREATE TABLE products (item_id TEXT PRIMARY KEY, title TEXT, image_url TEXT, item_url TEXT, "
+                     "price REAL, price_text TEXT, currency TEXT, shipping REAL, total_sold INTEGER, "
+                     "one_unit_every TEXT, sold_per_day REAL, days_per_sale REAL, sold_rate_text TEXT, "
+                     "watchers INTEGER, start_time TEXT, seller TEXT, category TEXT, condition TEXT, "
+                     "quantity_available INTEGER, est_sales TEXT, raw_json TEXT, first_seen TEXT NOT NULL, "
+                     "last_seen TEXT NOT NULL, last_run_id INTEGER)")
+    db = Database(path)
+    run_id = db.start_run("manual")
+    db.save_products(run_id, "k", [parse_item({**RAW, "lastSoldFor": 9})], set())
+    assert db.query_products(keyword="k")[0]["last_sold_price"] == 9.0

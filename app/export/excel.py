@@ -19,6 +19,8 @@ COLUMNS = [
     ("Số ngày từ start", 14, lambda p: _age(p)),
     ("Theo dõi", 10, lambda p: p.get("watchers")),
     ("Giá", 16, lambda p: p.get("price_text")),
+    ("Ngày bán gần nhất", 16, lambda p: (p.get("last_sold_at") or "")[:10] or None),
+    ("Giá bán gần nhất", 14, lambda p: p.get("last_sold_price_text")),
     ("Người bán", 18, lambda p: p.get("seller")),
     ("Danh mục", 40, lambda p: p.get("category")),
     ("Link eBay", 40, lambda p: p.get("item_url")),

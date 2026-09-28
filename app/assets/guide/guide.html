@@ -1,0 +1,273 @@
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5pt; color: #1f2937; }
+h1 { font-size: 18pt; color: #1e3a8a; margin-bottom: 4px; }
+h2 { font-size: 14pt; color: #1e3a8a; margin-top: 26px; margin-bottom: 6px; }
+h3 { font-size: 11.5pt; color: #111827; margin-top: 14px; margin-bottom: 4px; }
+p { margin-top: 4px; margin-bottom: 6px; line-height: 150%; }
+.shot { margin-top: 8px; margin-bottom: 2px; }
+li { margin-bottom: 4px; line-height: 150%; }
+.lead { color: #4b5563; }
+.tip { background-color: #eff6ff; color: #1e3a8a; }
+.warn { background-color: #fef3c7; color: #78350f; }
+.cap { color: #6b7280; font-size: 9pt; }
+.key { color: #1d4ed8; font-weight: bold; }
+th { background-color: #1e3a8a; color: #ffffff; padding: 6px; }
+td { padding: 6px; }
+a { color: #1d4ed8; }
+</style>
+</head>
+<body>
+
+<h1>Hướng dẫn sử dụng Bestseller Crawler</h1>
+<p class="lead">Tool tự động tìm sản phẩm eBay bán chạy trên <b>watchcount.com</b> theo danh sách từ khoá của bạn,
+lọc theo ngày đăng, số đơn, tốc độ bán, rồi hiển thị dạng thẻ (card) có tiêu đề, hình ảnh và xuất ra Excel.
+Tool có thể tự quét theo lịch, kể cả khi bạn không ngồi trước máy.</p>
+
+<table width="100%" cellspacing="0" cellpadding="10" class="tip"><tr><td>
+<b>Bắt đầu nhanh trong 5 bước</b>
+<ol>
+<li><a href="#login">Đăng nhập watchcount</a> (một lần duy nhất).</li>
+<li><a href="#keywords">Thêm từ khoá</a> cần tìm.</li>
+<li><a href="#search">Chọn tab Sold/Live</a> và <a href="#filters">bộ lọc</a> (đã có sẵn giá trị gợi ý, có thể giữ nguyên).</li>
+<li>Bấm <span class="key">▶ Quét ngay</span> ở góc trên bên phải, <a href="#captcha">tích ô xác minh</a> nếu được hỏi.</li>
+<li><a href="#results">Xem kết quả</a>, bấm <span class="key">Xuất Excel</span> để lấy file.</li>
+</ol>
+</td></tr></table>
+
+<h3>Mục lục</h3>
+<ol>
+<li><a href="#install">Cài đặt và mở app lần đầu</a></li>
+<li><a href="#login">Đăng nhập watchcount</a></li>
+<li><a href="#keywords">Thêm từ khoá</a></li>
+<li><a href="#search">Chọn tab tìm kiếm: Sold hay Live</a></li>
+<li><a href="#filters">Bộ lọc khi quét</a></li>
+<li><a href="#scan">Quét và xác minh "I'm not a robot"</a></li>
+<li><a href="#results">Xem kết quả và xuất Excel</a></li>
+<li><a href="#schedule">Lịch quét tự động</a></li>
+<li><a href="#log">Nhật ký</a></li>
+<li><a href="#quota">Lượt tìm kiếm của watchcount</a></li>
+<li><a href="#faq">Câu hỏi thường gặp và xử lý lỗi</a></li>
+</ol>
+
+<!-- ============================================================ -->
+<h2><a name="install"></a>1. Cài đặt và mở app lần đầu</h2>
+<ol>
+<li>Chạy file <b>BestsellerCrawlerSetup-x.y.z.exe</b>, bấm <b>Next</b> đến hết. Không cần quyền quản trị (admin).</li>
+<li>Mở app bằng biểu tượng <b>Bestseller Crawler</b> trên Desktop hoặc trong Start Menu.</li>
+<li>Lần quét đầu tiên, app tự tải trình duyệt Chromium (khoảng 200MB). Hãy giữ kết nối mạng và chờ vài phút;
+việc này chỉ diễn ra một lần.</li>
+</ol>
+<p>Thanh bên trái là các mục của app. Bấm vào từng mục để chuyển trang:</p>
+<ul>
+<li><b>Kết quả</b>: các sản phẩm tìm được.</li>
+<li><b>Từ khoá</b>: danh sách từ khoá cần quét.</li>
+<li><b>Cài đặt quét</b>: tài khoản watchcount, tab tìm kiếm, bộ lọc.</li>
+<li><b>Lịch quét</b>: hẹn giờ quét tự động.</li>
+<li><b>Nhật ký</b>: tool đang làm gì, các lần quét trước.</li>
+<li><b>Hướng dẫn</b>: trang bạn đang đọc.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2><a name="login"></a>2. Đăng nhập watchcount</h2>
+<p>Tài khoản <b>Free</b> của watchcount cho 200 lượt tìm/ngày, còn khi chưa đăng nhập chỉ có 20 lượt/ngày.
+Nếu chưa có tài khoản, đăng ký miễn phí tại <a href="https://www.watchcount.com">watchcount.com</a>.</p>
+<ol>
+<li>Vào <b>Cài đặt quét</b>, khung <b>Tài khoản watchcount</b>.</li>
+<li>Bấm <span class="key">Đăng nhập watchcount (mở trình duyệt)</span>. Một cửa sổ trình duyệt hiện ra.</li>
+<li>Đăng nhập bằng email/mật khẩu hoặc Google như bình thường. Tool <b>không lưu mật khẩu</b>.</li>
+<li>Sau khi đăng nhập, tool mở thử một trang tìm kiếm. Nếu thấy ô <b>I'm not a robot</b> thì tích vào
+(xem <a href="#captcha">mục 6</a>). Xong thì cửa sổ tự đóng.</li>
+<li>Bấm <span class="key">Kiểm tra tài khoản &amp; lượt còn lại</span> để xem số lượt còn lại hôm nay.</li>
+</ol>
+<div class="shot"><img src="settings_account.png" width="780"></div>
+<p class="cap">Khung Tài khoản sau khi đăng nhập thành công: hiện email, gói và số lượt còn lại.</p>
+
+<!-- ============================================================ -->
+<h2><a name="keywords"></a>3. Thêm từ khoá</h2>
+<ol>
+<li>Vào mục <b>Từ khoá</b>.</li>
+<li>Gõ hoặc dán từ khoá vào ô phía trên, <b>mỗi dòng một từ khoá</b> (ví dụ: <i>halloween doormat</i>).</li>
+<li>Bấm <span class="key">Thêm từ khoá</span>. Từ khoá trùng sẽ tự bị bỏ qua.</li>
+<li>Bỏ tích ở cột <b>Bật</b> nếu muốn tạm không quét từ khoá đó (không cần xoá).</li>
+</ol>
+<p>Có nhiều từ khoá thì dùng <b>Nhập từ file .txt</b> (mỗi dòng một từ khoá). <b>Xuất ra file .txt</b> để sao lưu
+hoặc chuyển sang máy khác. Chọn một dòng rồi bấm <b>Xoá dòng đang chọn</b> để xoá.</p>
+<div class="shot"><img src="keywords.png" width="880"></div>
+<p class="cap">Trang Từ khoá với 4 từ khoá đang bật.</p>
+
+<!-- ============================================================ -->
+<h2><a name="search"></a>4. Chọn tab tìm kiếm: Sold hay Live</h2>
+<p>Trên watchcount có hai tab tìm kiếm. Tool dùng <b>Search Sold</b> mặc định.</p>
+<table width="100%" border="1" cellspacing="0" cellpadding="6" style="border-color:#d1d5db">
+<tr><th width="18%">Tab</th><th>Lấy sản phẩm nào</th><th width="30%">Khi nào nên dùng</th></tr>
+<tr><td><b>Search Sold</b><br>(mặc định)</td>
+<td>Chỉ những listing <b>đã có người mua</b>, kèm ngày bán gần nhất và giá bán gần nhất.</td>
+<td>Tìm mẫu đang bán ra đơn thật. Phù hợp nhất để săn bestseller.</td></tr>
+<tr><td><b>Search Live</b></td>
+<td>Mọi listing <b>đang bán</b>, kể cả chưa có đơn nào.</td>
+<td>Cần sắp xếp theo Watch Count, Newly Listed hoặc Best Selling.</td></tr>
+</table>
+<p>Các ô trong khung <b>Tìm kiếm trên watchcount</b> (Cài đặt quét):</p>
+<ul>
+<li><b>Tab tìm kiếm</b>: Search Sold hoặc Search Live.</li>
+<li><b>Có đơn trong vòng (tab Sold)</b>: chỉ lấy sản phẩm có đơn trong 1 / 2 / 3 / 7 / 14 / 30 / 45 / 60 ngày gần đây.
+Mặc định 7 ngày. Ô này chỉ dùng với tab Sold.</li>
+<li><b>eBay site</b>: chợ eBay cần tìm (EBAY_US là eBay Mỹ).</li>
+<li><b>Sắp xếp</b>: tab Sold chỉ có <i>Best Match</i> và <i>theo giá</i>; tab Live có thêm <i>Watch Count</i>,
+<i>Newly Listed</i>, <i>Best Selling</i>. Đổi tab thì danh sách này tự đổi theo.</li>
+<li><b>Loại listing</b>: nên để <i>Fixed-Price / BIN</i> (giá cố định).</li>
+<li><b>Số trang tối đa / từ khoá</b>: mỗi trang 20 sản phẩm và tốn 1 lượt. Muốn lấy hết sản phẩm của một từ khoá thì tăng
+số này và tích <b>Lấy hết các trang</b>.</li>
+<li><b>Dừng từ khoá sau N trang liền không có đơn</b>: tiết kiệm lượt khi những trang sau không còn sản phẩm có đơn.</li>
+<li><b>Nghỉ giữa các trang</b>: nghỉ ngẫu nhiên để giống người thật, nên giữ 3–7 giây.</li>
+<li><b>Chừa lại số lượt / ngày</b>: để dành lượt cho bạn tự tìm trên web watchcount.</li>
+<li><b>Ẩn trình duyệt khi quét</b>: nên tích để quét chạy nền, không hiện cửa sổ.</li>
+</ul>
+<div class="shot"><img src="settings_search.png" width="780"></div>
+<p class="cap">Khung Tìm kiếm: tab Sold, lấy sản phẩm có đơn trong 7 ngày.</p>
+<p>Đổi xong nhớ bấm <span class="key">Lưu cài đặt</span> ở cuối trang.</p>
+
+<!-- ============================================================ -->
+<h2><a name="filters"></a>5. Bộ lọc khi quét</h2>
+<p>Tool lưu <b>mọi</b> sản phẩm tìm được, và đánh dấu những sản phẩm <b>đạt bộ lọc</b>. Ô nào <b>để trống</b> thì không lọc
+theo ô đó. Mỗi dòng gồm: chỉ số, phép so sánh (&lt;=, &gt;=, &lt;, &gt;, =) và giá trị.</p>
+<table width="100%" border="1" cellspacing="0" cellpadding="6" style="border-color:#d1d5db">
+<tr><th width="30%">Chỉ số</th><th>Ý nghĩa</th><th width="24%">Ví dụ</th></tr>
+<tr><td><b>Start</b> (số ngày từ lúc đăng)</td><td>Listing đăng bao nhiêu ngày trước.</td>
+<td>&lt;= 7: bỏ listing đăng quá 7 ngày.</td></tr>
+<tr><td><b>Bán gần nhất</b> (số ngày trước)</td><td>Đơn gần nhất cách đây bao nhiêu ngày (chỉ tab Sold có).</td>
+<td>&lt;= 3: vừa có đơn trong 3 ngày.</td></tr>
+<tr><td><b>Tổng đơn</b></td><td>Tổng số đơn đã bán của listing.</td><td>&gt;= 5</td></tr>
+<tr><td><b>Sell one</b> (số ngày bán 1 đơn)</td><td>Trung bình mấy ngày bán được 1 đơn. Càng nhỏ càng bán chạy.</td>
+<td>&lt;= 7, &lt;= 3 hoặc &lt;= 1</td></tr>
+<tr><td><b>Số đơn trung bình / ngày</b></td><td>Ngược lại với Sell one.</td><td>&gt;= 1</td></tr>
+<tr><td><b>Lượt theo dõi</b></td><td>Số người đang theo dõi (watch) listing.</td><td>&gt;= 10</td></tr>
+<tr><td><b>Giá (USD)</b></td><td>Giá thấp nhất của listing.</td><td>&lt;= 30</td></tr>
+</table>
+<div class="shot"><img src="settings_filters.png" width="780"></div>
+<p class="cap">Mặc định: đăng trong 7 ngày và trung bình 7 ngày bán được ít nhất 1 đơn.</p>
+<table width="100%" cellspacing="0" cellpadding="10" class="tip"><tr><td>
+<b>Mẹo:</b> điều kiện <i>Start &lt;= N</i> còn được gửi thẳng lên watchcount, nên tool chỉ tải listing mới và tốn ít lượt hơn.
+</td></tr></table>
+
+<!-- ============================================================ -->
+<h2><a name="scan"></a>6. Quét và xác minh "I'm not a robot"</h2>
+<p>Bấm <span class="key">▶ Quét ngay</span> ở góc trên bên phải. Thanh trên cùng hiện từ khoá đang quét và tiến độ.
+Bấm <span class="key">■ Dừng</span> để dừng giữa chừng, những gì đã quét vẫn được giữ.</p>
+<div class="shot"><img src="topbar_scanning.png" width="880"></div>
+
+<h3><a name="captcha"></a>Khi watchcount hỏi xác minh</h3>
+<p>Thỉnh thoảng watchcount bắt xác minh chống robot (reCAPTCHA). Khi đó tool tự <b>mở một cửa sổ trình duyệt</b>
+và hiện thông báo ở góc màn hình. Bạn làm như sau:</p>
+<ol>
+<li>Chờ khoảng <b>15 giây</b> cho ô <b>I'm not a robot</b> hiện ra ở đầu trang. Dải màu xanh ở đáy trang là hướng dẫn của tool.</li>
+<li>Tích vào ô. Nếu được hỏi chọn ảnh (vd: "chọn tất cả ô có xe buýt") thì chọn rồi bấm <b>Verify</b>.</li>
+<li>Xong thì tool <b>tự quét tiếp</b>. Không cần đóng cửa sổ, cũng không cần bấm quét lại.</li>
+</ol>
+<div class="shot"><img src="captcha.png" width="780"></div>
+<p class="cap">Trang xác minh của watchcount, kèm dải hướng dẫn của tool ở đáy.</p>
+<table width="100%" cellspacing="0" cellpadding="10" class="warn"><tr><td>
+<b>Lưu ý:</b>
+<ul>
+<li>Tool chờ tối đa 5 phút. Quá thời gian hoặc bạn đóng cửa sổ thì lần quét dừng lại, bấm Quét ngay để thử lại.</li>
+<li>Nếu hiện hộp <b>Time Zone Updated</b> che mất ô tích, bấm <b>OK</b> để đóng.</li>
+<li>Xác minh xong, các lần quét sau lại chạy ẩn. Watchcount có thể hỏi lại sau vài giờ, cứ tích lại như trên.</li>
+</ul>
+</td></tr></table>
+
+<!-- ============================================================ -->
+<h2><a name="results"></a>7. Xem kết quả và xuất Excel</h2>
+<p>Mục <b>Kết quả</b> hiện sản phẩm dạng thẻ. Thanh phía trên dùng để:</p>
+<ul>
+<li><b>Từ khoá</b>, <b>Lần quét</b>: xem riêng một từ khoá hoặc một lần quét.</li>
+<li><b>Sắp xếp</b>: tổng đơn cao nhất, bán nhanh nhất, bán gần đây nhất, mới đăng nhất...</li>
+<li><b>Chỉ SP đạt bộ lọc khi quét</b>: bỏ tích để xem tất cả sản phẩm đã lưu.</li>
+<li><b>Tìm trong tiêu đề</b>: gõ chữ để lọc nhanh theo tiêu đề.</li>
+<li><b>Bộ lọc nâng cao</b>: lọc thêm ngay trên màn hình mà không cần quét lại.</li>
+<li><span class="key">Xuất Excel</span>: xuất đúng danh sách đang hiện ra file .xlsx (Từ khoá | Tiêu đề | Hình ảnh | các chỉ số).</li>
+</ul>
+<div class="shot"><img src="results.png" width="880"></div>
+<p class="cap">Trang Kết quả với các sản phẩm tìm được từ tab Sold.</p>
+<table width="100%" cellspacing="0" cellpadding="0"><tr>
+<td width="270" valign="top"><img src="card.png"></td>
+<td valign="top">
+<h3>Đọc một thẻ sản phẩm</h3>
+<ul>
+<li><b>Ảnh</b>: bấm vào để mở listing trên eBay.</li>
+<li><b>Nhãn xanh</b>: từ khoá tìm ra sản phẩm này.</li>
+<li><b>Tổng đơn</b>: số đơn đã bán.</li>
+<li><b>Sell one</b>: tốc độ bán do watchcount tính (vd <i>1.4 sold/week</i> = 1,4 đơn mỗi tuần).</li>
+<li><b>1 đơn / ngày</b>: trung bình mấy ngày bán được 1 đơn.</li>
+<li><b>Start</b>: listing đăng cách đây bao lâu.</li>
+<li><b>Theo dõi</b>, <b>Giá</b>: số người theo dõi và giá bán hiện tại.</li>
+<li><b>Bán gần nhất</b>, <b>Giá bán gần nhất</b>: chỉ có với tab Sold.</li>
+<li>Nút <b>Mở eBay</b>, <b>Copy tiêu đề</b>, <b>Copy ảnh</b> (copy link ảnh).</li>
+</ul>
+</td></tr></table>
+
+<!-- ============================================================ -->
+<h2><a name="schedule"></a>8. Lịch quét tự động</h2>
+<ol>
+<li>Vào mục <b>Lịch quét</b>, chọn <b>Chế độ</b>:
+<ul>
+<li><i>Mỗi N ngày một lần</i>: vd 2 ngày một lần, tính từ ngày ở ô <b>Tính từ ngày</b>.</li>
+<li><i>Các ngày lẻ</i> / <i>Các ngày chẵn</i>: quét vào các ngày lẻ (1, 3, 5...) hoặc chẵn (2, 4, 6...) trong tháng.</li>
+<li><i>Thủ công</i>: tắt lịch, chỉ quét khi bấm Quét ngay.</li>
+</ul></li>
+<li>Chọn <b>Giờ quét</b>, bấm <span class="key">Lưu lịch quét</span>. Khung <b>Trạng thái</b> hiện lần quét kế tiếp.</li>
+</ol>
+<div class="shot"><img src="schedule.png" width="880"></div>
+<table width="100%" cellspacing="0" cellpadding="10" class="warn"><tr><td>
+<b>App phải đang chạy thì lịch mới quét.</b> Bấm dấu X để đóng cửa sổ thì app thu xuống khay hệ thống
+(góc phải thanh taskbar, gần đồng hồ) và vẫn chạy. Muốn thoát hẳn: chuột phải biểu tượng ở khay → <b>Thoát hẳn</b>.
+Nếu máy tắt đúng giờ quét, app sẽ quét bù một lần khi mở lại trong ngày đó.
+</td></tr></table>
+<p>Trong <b>Cài đặt quét → Chung</b>, tích <b>Khởi động cùng Windows</b> để app tự chạy mỗi khi bật máy:</p>
+<div class="shot"><img src="settings_general.png" width="780"></div>
+
+<!-- ============================================================ -->
+<h2><a name="log"></a>9. Nhật ký</h2>
+<p>Mục <b>Nhật ký</b> ghi tool đang làm gì (từ khoá nào, trang mấy, bao nhiêu sản phẩm đạt lọc) và danh sách các lần
+quét trước. Khi gặp lỗi, hãy xem ở đây trước.</p>
+<div class="shot"><img src="log.png" width="880"></div>
+
+<!-- ============================================================ -->
+<h2><a name="quota"></a>10. Lượt tìm kiếm của watchcount</h2>
+<p>Mỗi trang kết quả (20 sản phẩm) tốn <b>1 lượt</b>. Tool tự chia đều số lượt còn lại cho các từ khoá và dừng khi hết lượt.</p>
+<table width="100%" border="1" cellspacing="0" cellpadding="6" style="border-color:#d1d5db">
+<tr><th>Loại tìm kiếm</th><th>Chưa đăng nhập</th><th>Tài khoản Free</th></tr>
+<tr><td>Tab Sold, Best Match, theo giá, Newly Listed</td><td>20 / ngày</td><td>200 / ngày</td></tr>
+<tr><td>Watch Count (tab Live)</td><td>20 / ngày</td><td>50 / ngày</td></tr>
+<tr><td>Best Selling (tab Live, bắt buộc đăng nhập)</td><td>—</td><td>3 / tháng</td></tr>
+</table>
+<p>Ví dụ: 10 từ khoá × 10 trang = tối đa 100 lượt mỗi lần quét.</p>
+
+<!-- ============================================================ -->
+<h2><a name="faq"></a>11. Câu hỏi thường gặp và xử lý lỗi</h2>
+<h3>Báo "Watchcount yêu cầu xác minh reCAPTCHA"</h3>
+<p>Làm theo <a href="#captcha">mục 6</a>. Đây không phải lỗi đăng nhập.</p>
+<h3>Báo "Watchcount yêu cầu đăng nhập"</h3>
+<p>Chỉ gặp khi dùng Best Selling mà chưa đăng nhập, hoặc phiên đăng nhập đã hết hạn. Vào <a href="#login">Cài đặt quét →
+Đăng nhập watchcount</a>.</p>
+<h3>Báo "Chưa tải được trình duyệt Chromium"</h3>
+<p>Kiểm tra kết nối mạng rồi bấm Quét ngay lại. App tải Chromium vào thư mục
+<i>%LOCALAPPDATA%\ms-playwright</i>.</p>
+<h3>Quét xong mà không có sản phẩm nào đạt lọc</h3>
+<ul>
+<li>Bỏ tích <b>Chỉ SP đạt bộ lọc khi quét</b> ở trang Kết quả để xem toàn bộ sản phẩm đã lưu.</li>
+<li>Nới bộ lọc: vd Sell one &lt;= 14, Start &lt;= 30, hoặc để trống bớt ô.</li>
+<li>Tab Sold: tăng <b>Có đơn trong vòng</b> lên 14 hoặc 30 ngày.</li>
+</ul>
+<h3>Hết lượt giữa chừng</h3>
+<p>Giảm <b>Số trang tối đa / từ khoá</b>, bớt từ khoá, hoặc đăng nhập để có 200 lượt/ngày. Lượt được reset mỗi ngày.</p>
+<h3>Cập nhật phiên bản mới</h3>
+<p>App tự kiểm tra mỗi lần mở. Khi có bản mới, bấm <b>Yes</b> để tải và cài; app tự đóng rồi mở lại.
+Có thể kiểm tra thủ công ở <b>Cài đặt quét → Phiên bản &amp; cập nhật</b>. Từ khoá, kết quả, cài đặt và phiên đăng
+nhập được giữ nguyên khi cập nhật.</p>
+
+<p>&nbsp;</p>
+</body>
+</html>

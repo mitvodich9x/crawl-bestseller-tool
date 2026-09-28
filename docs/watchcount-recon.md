@@ -124,3 +124,14 @@ ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-he
 2. Lấy dữ liệu bằng `window.searchResult`, không cần selector DOM, nên không cần `extract_list.js`.
 3. Lọc start date bằng `startTimeFrom` ngay trên URL; lọc tổng đơn và sell-one ở phía tool.
 4. Đọc `/guest/usage` (hoặc endpoint usage của user) trước khi quét để báo lượt còn lại, dừng khi hết lượt.
+
+## Tab Search Sold (khảo sát 2026-09-28)
+- URL: `https://www.watchcount.com/sold/{keywords}/{category}/{listingType}?site=EBAY_US&sortBy=bestmatch&lastSoldDate=7days`
+  (tab Live là `/live/...`). Dữ liệu vẫn ở `window.searchResult`, phân trang `offset`/`nextOffset` như Live.
+- Sắp xếp: chỉ `bestmatch`, `price` + `sortOrder=asc|desc`. Watch Count / Newly Listed / Best Selling chỉ có ở Live.
+- Lọc thêm `lastSoldDate`: `1day`, `2days`, `3days`, `7days`, `14days`, `30days`, `45days`, `60days`.
+  `startTimeFrom` vẫn dùng được.
+- Mỗi trang tốn 1 lượt **standard** (giống Best Match).
+- Item có thêm `lastSoldDate` (ISO), `lastSoldFor`, `lastSoldForFormatted`; `status` = "Active with Sales".
+  Các trường khác (`quantitySold`, `oneUnitEvery`, `startTime`, `watchCount`...) giống tab Live.
+- Mỗi lần mở trang, reCAPTCHA v3 chạy ngầm (`/recaptcha_verify`); profile đã qua xác minh thì không bị chặn.

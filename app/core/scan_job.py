@@ -52,7 +52,9 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
     cb = cb or ScanCallbacks()
     search_cfg = cfg["search"]
     rules = filters.rules_from_config(cfg["scan_filters"])
-    sort_by = search_cfg["sort_by"]
+    status = search_cfg.get("status") or "live"
+    sort_by = watchcount.valid_sort(status, search_cfg["sort_by"])
+    last_sold_within = search_cfg.get("last_sold_within") or None
     max_pages = max(1, int(search_cfg["max_pages"]))
     stop_after_empty = int(search_cfg["stop_after_empty_pages"])  # 0 = quét hết trang, không dừng sớm
     start_within = watchcount.start_within_param(_max_start_age(rules))
@@ -73,7 +75,7 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
                                  watchcount.WatchcountClient(browser_profile_dir(), headless))
     client = factory()
     try:
-        say("Đang mở trình duyệt...")
+        say(f"Đang mở trình duyệt... (tab {'Sold' if status == 'sold' else 'Live'})")
         client.start()
         account = client.account_status()
         if not account["logged_in"]:
@@ -114,7 +116,8 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
                 if cb.should_stop() or remaining <= 0:
                     break
                 url = watchcount.build_search_url(keyword, search_cfg["site"], sort_by,
-                                                  search_cfg["listing_type"], start_within, offset)
+                                                  search_cfg["listing_type"], start_within, offset,
+                                                  status=status, last_sold_within=last_sold_within)
                 try:
                     result = _search_with_retry(client, url, say, cb.should_stop)
                 except watchcount.ChallengeError:

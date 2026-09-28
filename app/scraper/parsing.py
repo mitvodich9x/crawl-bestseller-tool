@@ -53,6 +53,7 @@ def parse_item(raw: dict) -> dict:
         prices = [prices]
     numeric_prices = [p for p in (_to_float(x) for x in prices) if p is not None]
     start = parse_iso_utc(raw.get("startTime"))
+    last_sold = parse_iso_utc(raw.get("lastSoldDate"))  # chỉ tab Sold có
     item_id = str(raw["id"])
 
     return {
@@ -76,5 +77,8 @@ def parse_item(raw: dict) -> dict:
         "condition": raw.get("condition"),
         "quantity_available": raw.get("quantityAvailable"),
         "est_sales": raw.get("estimatedTotalSalesFormatted"),
+        "last_sold_at": last_sold.isoformat() if last_sold else None,
+        "last_sold_price": _to_float(raw.get("lastSoldFor")),
+        "last_sold_price_text": raw.get("lastSoldForFormatted"),
         "raw_json": json.dumps(raw, ensure_ascii=False),
     }
