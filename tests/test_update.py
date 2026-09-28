@@ -141,3 +141,30 @@ def test_fetch_latest_parses_github_payload(monkeypatch):
     release = update_service.fetch_latest()
     assert release.version == "9.9.9"
     assert update_service.is_newer(release.version) is True
+
+
+def test_parse_release_prefers_installer():
+    payload = {
+        "tag_name": "v0.3.0",
+        "assets": [
+            {"name": "BestsellerCrawler-0.3.0.zip", "browser_download_url": "https://x/app.zip", "size": 1},
+            {"name": "BestsellerCrawlerSetup-0.3.0.exe", "browser_download_url": "https://x/setup.exe", "size": 2},
+        ],
+    }
+    release = update_service.parse_release(payload)
+    assert release.asset_url == "https://x/setup.exe"
+    assert update_service.is_installer(release.asset_name)
+
+
+def test_prepare_uses_installer_as_is(tmp_path):
+    setup = tmp_path / "BestsellerCrawlerSetup-0.3.0.exe"
+    setup.write_bytes(b"x")
+    assert update_service.prepare(setup) == setup
+
+
+def test_installer_script_installs_silently_into_current_folder():
+    script = update_service._installer_script(Path(r"C:\data\updates\Setup.exe"),
+                                              Path(r"D:\Apps\BestsellerCrawler"), pid=123)
+    assert 'set "APPPID=123"' in script
+    assert '/SILENT' in script and '/DIR="%APPDIR%"' in script
+    assert r'set "APPDIR=D:\Apps\BestsellerCrawler"' in script

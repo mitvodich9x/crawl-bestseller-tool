@@ -8,7 +8,7 @@ from app.errors import friendly_error
 from app.core.scan_job import ScanCallbacks, run_scan
 from app.db.database import Database
 from app.paths import browser_profile_dir
-from app.scraper.watchcount import WatchcountClient
+from app.scraper.watchcount import ChallengeError, WatchcountClient
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ def _ensure_chromium(emit) -> bool:
 class ScanWorker(QThread):
     log_line = pyqtSignal(str)
     progress = pyqtSignal(int, int, str)
+    attention = pyqtSignal(str)  # cần người dùng tích reCAPTCHA trong cửa sổ trình duyệt
     done = pyqtSignal(object)  # ScanSummary | None
 
     def __init__(self, db: Database, cfg: dict, keywords: list[str], trigger: str):
@@ -41,7 +42,7 @@ class ScanWorker(QThread):
         try:
             if _ensure_chromium(self.log_line.emit):
                 callbacks = ScanCallbacks(log=self.log_line.emit, progress=self.progress.emit,
-                                          should_stop=lambda: self._stop)
+                                          should_stop=lambda: self._stop, attention=self.attention.emit)
                 summary = run_scan(self.db, self.cfg, self.keywords, self.trigger, callbacks)
         except Exception as exc:
             log.exception("Scan worker crashed")
@@ -64,7 +65,7 @@ class UpdateCheckWorker(QThread):
 
 class UpdateDownloadWorker(QThread):
     progress = pyqtSignal(int, int)  # bytes tải xong, tổng bytes
-    done = pyqtSignal(object, object)  # thư mục đã giải nén | None, lỗi | None
+    done = pyqtSignal(object, object)  # file cài đặt / thư mục đã giải nén | None, lỗi | None
 
     def __init__(self, release):
         super().__init__()
@@ -76,8 +77,8 @@ class UpdateDownloadWorker(QThread):
 
     def run(self) -> None:
         try:
-            zip_path = update_service.download_asset(self.release, self.progress.emit, lambda: self._stop)
-            self.done.emit(update_service.extract(zip_path), None)
+            downloaded = update_service.download_asset(self.release, self.progress.emit, lambda: self._stop)
+            self.done.emit(update_service.prepare(downloaded), None)
         except Exception as exc:
             log.warning("Update download failed: %s", exc)
             self.done.emit(None, str(exc))
@@ -110,6 +111,14 @@ class AccountWorker(QThread):
                 self.log_line.emit("Đã mở trình duyệt, hãy đăng nhập watchcount trong cửa sổ đó...")
                 if not client.interactive_login(should_stop=lambda: self._stop):
                     raise RuntimeError("Chưa đăng nhập (cửa sổ bị đóng hoặc quá thời gian chờ)")
+                # qua reCAPTCHA luôn trong cửa sổ này, để các lần quét ẩn sau không bị chặn
+                self.log_line.emit("Đang mở thử 1 trang tìm kiếm để qua xác minh reCAPTCHA "
+                                   "(tích \"I'm not a robot\" nếu được hỏi)...")
+                try:
+                    client.pass_challenge(should_stop=lambda: self._stop)
+                    self.log_line.emit("Đã qua xác minh reCAPTCHA")
+                except ChallengeError:
+                    self.log_line.emit("Chưa qua xác minh reCAPTCHA; lần quét tới sẽ mở lại cửa sổ để xác minh")
             result = client.account_status()
         except Exception as exc:
             log.warning("Account %s failed: %s", self.mode, exc)

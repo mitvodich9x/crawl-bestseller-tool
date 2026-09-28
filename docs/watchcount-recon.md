@@ -88,11 +88,19 @@ Hạn mức reset theo ngày tạo tài khoản (`resets_at`). Kiểm tra ngày 
   - **Best Match: 5/20 item có đơn**, trong đó có các item bán 5.0/day và 3.1/day giống top Best Selling.
 - `startTimeFrom` thỉnh thoảng trả về listing cũ hơn (vd 05-Aug-26), nên tool vẫn phải lọc lại start date.
 
-## Trang xác minh /challenge
-Khách **chưa đăng nhập** bị đẩy sang `https://beta.watchcount.com/challenge?returnURL=...` và trang này
-**không tự qua** dù chờ 60 giây, dù chạy ẩn hay hiện trình duyệt. Đăng nhập lại là hết ngay.
-Phiên đăng nhập có hạn (mất sau khoảng một tuần dù đã tích "Stay logged in"), nên tool kiểm tra
-trạng thái đăng nhập trước mỗi lần quét và dừng sớm với thông báo yêu cầu đăng nhập lại.
+## Trang xác minh /challenge (cập nhật 2026-09-28)
+Từ khoảng 09/2026 mọi URL của `beta.watchcount.com` chuyển hướng sang `www.watchcount.com` (cùng giao diện,
+cùng `window.searchResult`, `/user/usage`, `/guest/usage`). Cookie đăng nhập cũ gắn với host beta nên mất hiệu lực.
+
+Trang `https://www.watchcount.com/challenge?returnURL=...&hadToken=false` là **reCAPTCHA**, không liên quan
+đăng nhập (khách vẫn quét được sau khi qua):
+1. Script trang gọi reCAPTCHA v3 rồi `POST /recaptcha_verify`; thành công thì `location.replace(returnURL)`.
+2. Trượt v3 (`{"success":false,"error":"reCAPTCHA v3 verification failed"}`, luôn gặp với headless shell và
+   profile mới) thì hiện ô reCAPTCHA v2, người dùng tích xong gọi `POST /challenge_verify` rồi quay lại returnURL.
+3. Qua rồi thì được ghi vào phiên (`wc_frontend_session`), các lần sau kể cả chạy ẩn không bị hỏi lại.
+
+Tool: gặp challenge thì chờ v3 tự qua (25s ẩn); không qua thì mở cửa sổ hiện, chờ người dùng tích (5 phút),
+rồi quét tiếp. Đăng nhập chỉ bắt buộc với Best Selling; khách có 20 lượt standard/ngày, 1 lượt best selling.
 
 ## Thư mục trình duyệt của Playwright
 Playwright chọn thư mục theo biến môi trường `PLAYWRIGHT_BROWSERS_PATH`
@@ -112,7 +120,7 @@ ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-he
 ```
 
 ## Kết luận cho thiết kế
-1. Scraper dùng Playwright persistent profile trên `beta.watchcount.com`. User đăng nhập 1 lần trong profile đó.
+1. Scraper dùng Playwright persistent profile trên `www.watchcount.com` (trước là beta). User đăng nhập 1 lần trong profile đó.
 2. Lấy dữ liệu bằng `window.searchResult`, không cần selector DOM, nên không cần `extract_list.js`.
 3. Lọc start date bằng `startTimeFrom` ngay trên URL; lọc tổng đơn và sell-one ở phía tool.
 4. Đọc `/guest/usage` (hoặc endpoint usage của user) trước khi quét để báo lượt còn lại, dừng khi hết lượt.

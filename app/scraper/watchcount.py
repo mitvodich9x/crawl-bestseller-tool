@@ -1,7 +1,8 @@
-"""beta.watchcount.com client driven by a Playwright persistent browser profile.
+"""watchcount.com client driven by a Playwright persistent browser profile.
 
-The profile keeps the watchcount login cookie, so the user logs in once (interactive_login) and
-scheduled scans reuse the session. Search pages embed their data as `window.searchResult`.
+The profile keeps the watchcount login cookie and the reCAPTCHA pass, so the user logs in once
+(interactive_login) and scheduled scans reuse the session. Search pages embed their data as
+`window.searchResult`.
 """
 import json
 import logging
@@ -15,7 +16,7 @@ from app import browser_setup
 
 log = logging.getLogger(__name__)
 
-BASE_URL = "https://beta.watchcount.com"
+BASE_URL = "https://www.watchcount.com"
 PAGE_SIZE = 20
 
 SORT_OPTIONS = {
@@ -43,10 +44,15 @@ _START_WITHIN = [
 
 _BLOCK_MARKERS = ("just a moment", "access denied", "verify you are human", "unusual traffic")
 
-# watchcount đẩy khách chưa đăng nhập sang trang xác minh này; đăng nhập là qua
+# Trang xác minh reCAPTCHA. Script của trang tự chạy reCAPTCHA v3 rồi quay lại returnURL; trượt v3
+# (hay gặp khi chạy ẩn) thì hiện ô "I'm not a robot" cần người tích. Qua rồi thì phiên nhớ lâu dài.
 CHALLENGE_PATH = "/challenge"
+CHALLENGE_AUTO_WAIT_S = 25
+CHALLENGE_MANUAL_WAIT_S = 300
 NEED_LOGIN_MESSAGE = ("Watchcount yêu cầu đăng nhập. Vào Cài đặt quét → "
                       "Đăng nhập watchcount rồi quét lại.")
+CHALLENGE_MESSAGE = ("Watchcount yêu cầu xác minh reCAPTCHA. Trong cửa sổ trình duyệt, tích "
+                     "\"I'm not a robot\" nếu được hỏi.")
 
 
 def is_challenge_url(url: str | None) -> bool:
@@ -63,6 +69,10 @@ class NeedLoginError(WatchcountError):
 
 class BlockedError(WatchcountError):
     pass
+
+
+class ChallengeError(BlockedError):
+    """Kẹt ở trang /challenge: reCAPTCHA v3 không tự qua và chưa ai tích ô v2."""
 
 
 def start_within_param(max_age_days: float | None) -> str | None:
@@ -192,6 +202,8 @@ class WatchcountClient:
 
     def interactive_login(self, timeout_s: int = 600, should_stop=lambda: False) -> bool:
         """Open the login page in a visible window and wait until the user has signed in."""
+        if self.is_logged_in():
+            return True
         self.page.goto(BASE_URL + "/login", wait_until="domcontentloaded", timeout=60000)
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline and not should_stop():
@@ -207,13 +219,33 @@ class WatchcountClient:
             time.sleep(2)
         return False
 
+    def pass_challenge(self, should_stop=lambda: False) -> None:
+        """Mở một trang tìm kiếm để qua reCAPTCHA ngay trong cửa sổ đang hiện (tốn 1 lượt standard)."""
+        self.search(build_search_url("t-shirt"), should_stop=should_stop)
+
     # ---- search ---------------------------------------------------------------------------
 
-    def search(self, url: str, timeout_ms: int = 45000) -> dict:
+    def _wait_challenge(self, timeout_s: float, should_stop) -> bool:
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline and not should_stop():
+            try:
+                if self.page.is_closed():
+                    return False
+                if not is_challenge_url(self.page.url):
+                    return True
+            except Exception:
+                pass  # page is navigating
+            time.sleep(1)
+        return False
+
+    def search(self, url: str, timeout_ms: int = 45000, should_stop=lambda: False) -> dict:
         page = self.page
         page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
         if is_challenge_url(page.url):
-            raise NeedLoginError(NEED_LOGIN_MESSAGE)
+            wait_s = CHALLENGE_AUTO_WAIT_S if self.headless else CHALLENGE_MANUAL_WAIT_S
+            log.info("Gặp trang xác minh reCAPTCHA, chờ tối đa %ss", wait_s)
+            if not self._wait_challenge(wait_s, should_stop):
+                raise ChallengeError(CHALLENGE_MESSAGE)
         try:
             page.wait_for_function("() => window.searchResult !== undefined", timeout=timeout_ms)
         except PlaywrightTimeout as exc:

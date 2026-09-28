@@ -1,6 +1,6 @@
 # Bestseller Crawler
 
-Tool desktop quét sản phẩm eBay bán chạy trên [watchcount.com](https://beta.watchcount.com) theo danh sách từ khoá. Tool lọc theo start date, tổng đơn và tốc độ bán (sell one), hiển thị kết quả dạng card, xuất Excel và tự quét theo lịch.
+Tool desktop quét sản phẩm eBay bán chạy trên [watchcount.com](https://www.watchcount.com) theo danh sách từ khoá. Tool lọc theo start date, tổng đơn và tốc độ bán (sell one), hiển thị kết quả dạng card, xuất Excel và tự quét theo lịch.
 
 ## Chạy
 ```
@@ -58,25 +58,37 @@ python -m pytest tests
 ## Khi app báo lỗi trên máy người dùng
 - **"Chưa tải được trình duyệt Chromium"**: mở `BestsellerCrawler.exe --selftest-browser` (chạy trong cmd tại
   thư mục app). Lệnh này in ra thư mục trình duyệt, tự tải nếu thiếu, và ghi kết quả vào `data\logs\selftest.txt`.
-- **"Watchcount yêu cầu đăng nhập"**: phiên đăng nhập hết hạn (khoảng một tuần). Vào *Cài đặt quét →
-  Đăng nhập watchcount*. Chưa đăng nhập thì watchcount đẩy sang trang xác minh và không quét được.
+- **"Watchcount yêu cầu xác minh reCAPTCHA"**: watchcount đẩy sang trang `/challenge` (reCAPTCHA), không phải
+  do mất đăng nhập. Trình duyệt ẩn hay bị chấm trượt, nên app tự mở cửa sổ trình duyệt; tích *I'm not a robot*
+  nếu được hỏi. Qua một lần thì phiên được nhớ và các lần quét sau lại chạy ẩn.
+- **"Watchcount yêu cầu đăng nhập"**: chỉ gặp khi quét *Best Selling* mà chưa đăng nhập. Các kiểu sắp xếp khác
+  vẫn quét được bằng lượt của khách (20 lượt/ngày), nhưng nên đăng nhập để có 200 lượt/ngày.
+- Từ 09/2026 `beta.watchcount.com` đã chuyển hẳn sang `www.watchcount.com`. Phiên đăng nhập cũ nằm ở tên miền
+  beta nên không dùng được nữa: đăng nhập lại một lần trong *Cài đặt quét*.
 - App luôn tự đặt `PLAYWRIGHT_BROWSERS_PATH` về `%LOCALAPPDATA%\ms-playwright`, nên máy có sẵn biến này
   của tool khác (nhất là giá trị `0`) vẫn chạy bình thường.
 
+## Cài đặt trên máy người dùng
+Chạy `BestsellerCrawlerSetup-<version>.exe` (giống Walmart Scanner Pro). Bộ cài không cần quyền admin, cài vào
+`%LOCALAPPDATA%\Programs\BestsellerCrawler`, tạo shortcut Start Menu và Desktop. Dữ liệu nằm trong thư mục `data`
+cạnh file exe; gỡ cài đặt hoặc cài bản mới đều giữ nguyên thư mục này.
+
 ## Cập nhật phiên bản
 App tự kiểm tra bản mới trên GitHub Releases mỗi lần mở, và có nút **Kiểm tra cập nhật** trong *Cài đặt quét*.
-Khi đồng ý, app tải file zip của bản mới, giải nén rồi một script phụ chờ app thoát, ghi đè file và mở lại app.
+Khi đồng ý, app tải file cài đặt của bản mới, thoát ra, chạy bộ cài ở chế độ im lặng vào đúng thư mục đang dùng
+rồi tự mở lại. Release cũ chỉ có zip thì app giải nén và ghi đè bằng script phụ như trước.
 Thư mục `data` (database, cài đặt, phiên đăng nhập watchcount) được giữ nguyên.
 
 Phát hành bản mới:
 1. Tăng `APP_VERSION` trong [app/app_version.py](app/app_version.py).
-2. `build.bat`
-3. Tạo release trên GitHub với tag `vX.Y.Z` và đính kèm file zip trong `release/`.
+2. `build_installer.bat` (cần [Inno Setup 6](https://jrsoftware.org/isdl.php)).
+3. Tạo release trên GitHub với tag `vX.Y.Z`, đính kèm **cả** `release\BestsellerCrawlerSetup-<version>.exe`
+   và `release\BestsellerCrawler-<version>.zip` (bản 0.2.x chỉ biết tự cập nhật bằng zip).
 
-## Build bản chạy độc lập (.exe)
+## Build
 ```
-build.bat
+build.bat              icon + test + PyInstaller one-folder + release\BestsellerCrawler-<version>.zip
+build_installer.bat    build.bat rồi đóng gói thêm release\BestsellerCrawlerSetup-<version>.exe
 ```
-Script tạo icon, chạy test, build PyInstaller one-folder rồi nén thành `release\BestsellerCrawler-<version>.zip`.
-Người dùng cuối giải nén ở đâu cũng được rồi chạy `BestsellerCrawler.exe`; dữ liệu nằm trong thư mục `data` cạnh file exe.
-Đổi số phiên bản trong [app/app_version.py](app/app_version.py) trước khi build bản phát hành mới.
+Bộ cài lấy số phiên bản từ [app/app_version.py](app/app_version.py), script Inno Setup ở
+[installer/BestsellerCrawler.iss](installer/BestsellerCrawler.iss).

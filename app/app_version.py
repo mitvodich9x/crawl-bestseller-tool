@@ -1,3 +1,3 @@
 APP_NAME = "Bestseller Crawler"
 APP_ID = "vgp-bestseller-crawler"
-APP_VERSION = "0.2.1"
+APP_VERSION = "0.3.0"

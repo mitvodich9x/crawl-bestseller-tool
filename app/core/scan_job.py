@@ -20,6 +20,7 @@ class ScanCallbacks:
     log: Callable[[str], None] = lambda msg: None
     progress: Callable[[int, int, str], None] = lambda done, total, keyword: None
     should_stop: Callable[[], bool] = lambda: False
+    attention: Callable[[str], None] = lambda msg: None  # cần người dùng thao tác trên cửa sổ trình duyệt
 
 
 @dataclass
@@ -68,15 +69,18 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
         db.finish_run(summary.run_id, summary.status, 0, 0, 0, summary.error)
         return summary
 
-    factory = client_factory or (lambda: watchcount.WatchcountClient(browser_profile_dir(), search_cfg["headless"]))
+    factory = client_factory or (lambda headless=search_cfg["headless"]:
+                                 watchcount.WatchcountClient(browser_profile_dir(), headless))
     client = factory()
     try:
         say("Đang mở trình duyệt...")
         client.start()
         account = client.account_status()
         if not account["logged_in"]:
-            # khách bị watchcount đẩy sang trang xác minh, quét tiếp chỉ tốn thời gian
-            raise watchcount.NeedLoginError(watchcount.NEED_LOGIN_MESSAGE)
+            if watchcount.quota_bucket(sort_by) == "best_selling":
+                raise watchcount.NeedLoginError(watchcount.NEED_LOGIN_MESSAGE)
+            say("⚠ Chưa đăng nhập watchcount, quét bằng lượt của khách (ít hơn nhiều). "
+                "Nên vào Cài đặt quét → Đăng nhập watchcount.")
         remaining = watchcount.remaining_quota(account["usage"], sort_by)
         if remaining is None:
             say("Không đọc được hạn mức, quét tối đa theo cấu hình")
@@ -111,7 +115,19 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
                     break
                 url = watchcount.build_search_url(keyword, search_cfg["site"], sort_by,
                                                   search_cfg["listing_type"], start_within, offset)
-                result = _search_with_retry(client, url, say, cb.should_stop)
+                try:
+                    result = _search_with_retry(client, url, say, cb.should_stop)
+                except watchcount.ChallengeError:
+                    if not getattr(client, "headless", False):
+                        raise
+                    # trình duyệt ẩn hay bị reCAPTCHA v3 chấm trượt: mở cửa sổ hiện để người dùng tích ô xác minh,
+                    # qua một lần thì phiên được nhớ trong profile và các lần quét sau chạy ẩn bình thường
+                    say(watchcount.CHALLENGE_MESSAGE)
+                    cb.attention(watchcount.CHALLENGE_MESSAGE)
+                    client.close()
+                    client = factory(headless=False)
+                    client.start()
+                    result = _search_with_retry(client, url, say, cb.should_stop)
                 remaining -= 1
                 summary.pages_used += 1
                 if result is None:
@@ -148,6 +164,10 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
     except watchcount.NeedLoginError as exc:
         summary.status, summary.error = "need_login", str(exc) or watchcount.NEED_LOGIN_MESSAGE
         say(summary.error)
+    except watchcount.ChallengeError:
+        summary.status = "blocked"
+        summary.error = "Chưa qua được xác minh reCAPTCHA của watchcount (cửa sổ bị đóng hoặc quá thời gian chờ)."
+        say(summary.error)
     except watchcount.BlockedError as exc:
         summary.status, summary.error = "blocked", f"{exc}. Thử tắt chế độ ẩn trình duyệt rồi quét lại."
         say(summary.error)
@@ -168,7 +188,7 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
 def _search_with_retry(client, url: str, say, should_stop, attempts: int = 3) -> dict | None:
     for attempt in range(1, attempts + 1):
         try:
-            return client.search(url)
+            return client.search(url, should_stop=should_stop)
         except (watchcount.NeedLoginError, watchcount.BlockedError):
             raise
         except Exception as exc:

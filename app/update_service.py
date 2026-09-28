@@ -1,8 +1,10 @@
 """Tự cập nhật qua GitHub Releases (repo công khai, không cần token hay server riêng).
 
-Windows không cho ghi đè file .exe đang chạy, nên bản mới được giải nén ra thư mục tạm rồi
-một file .bat phụ chờ app thoát, copy đè lên thư mục cài và mở lại app.
-Thư mục data (database, cài đặt, phiên đăng nhập) được giữ nguyên.
+Bản phát hành có file cài đặt (BestsellerCrawlerSetup-x.y.z.exe, Inno Setup) thì app tải về rồi chạy
+ở chế độ im lặng, cài đè đúng thư mục đang chạy; installer tự mở lại app khi xong.
+Bản phát hành cũ chỉ có .zip thì giải nén ra thư mục tạm rồi một file .bat phụ chờ app thoát,
+copy đè lên thư mục cài và mở lại app.
+Cả hai cách đều giữ nguyên thư mục data (database, cài đặt, phiên đăng nhập).
 """
 import json
 import logging
@@ -49,9 +51,23 @@ def is_newer(latest: str, current: str = APP_VERSION) -> bool:
     return parse_version(latest) > parse_version(current)
 
 
+def _pick_asset(assets: list[dict]) -> dict | None:
+    """Ưu tiên file cài đặt .exe, không có thì lấy .zip."""
+    for suffix in ("setup", ".zip"):
+        for asset in assets:
+            name = (asset.get("name") or "").lower()
+            if (suffix == "setup" and "setup" in name and name.endswith(".exe")) or \
+                    (suffix == ".zip" and name.endswith(".zip")):
+                return asset
+    return None
+
+
+def is_installer(path_or_name) -> bool:
+    return str(path_or_name).lower().endswith(".exe")
+
+
 def parse_release(payload: dict) -> ReleaseInfo:
-    asset = next((a for a in payload.get("assets") or []
-                  if (a.get("name") or "").lower().endswith(".zip")), None)
+    asset = _pick_asset(payload.get("assets") or [])
     return ReleaseInfo(
         version=(payload.get("tag_name") or "").lstrip("vV"),
         name=payload.get("name") or payload.get("tag_name") or "",
@@ -145,10 +161,38 @@ def _updater_script(new_dir: Path, install_dir: Path | None = None, exe: Path | 
     )
 
 
+def prepare(downloaded: Path) -> Path:
+    """File cài đặt dùng luôn; file zip thì giải nén."""
+    return downloaded if is_installer(downloaded) else extract(downloaded)
+
+
+def _installer_script(installer: Path, install_dir: Path | None = None, pid: int | None = None) -> str:
+    install_dir = install_dir or app_dir()
+    pid = os.getpid() if pid is None else pid
+    return (
+        "@echo off\r\n"
+        "setlocal\r\n"
+        f'set "SETUP={installer}"\r\n'
+        f'set "APPDIR={install_dir}"\r\n'
+        f'set "APPPID={pid}"\r\n'
+        ":waitloop\r\n"
+        'tasklist /FI "PID eq %APPPID%" 2>nul | find "%APPPID%" >nul\r\n'
+        "if not errorlevel 1 (\r\n"
+        "  ping -n 2 127.0.0.1 >nul\r\n"
+        "  goto waitloop\r\n"
+        ")\r\n"
+        "rem cai de dung thu muc dang chay; installer tu mo lai app khi xong\r\n"
+        '"%SETUP%" /SP- /SILENT /SUPPRESSMSGBOXES /NOCANCEL /NORESTART /DIR="%APPDIR%"\r\n'
+        'del "%SETUP%" 2>nul\r\n'
+        '(goto) 2>nul & del "%~f0"\r\n'
+    )
+
+
 def apply_update(new_dir: Path) -> None:
     """Khởi chạy script thay file rồi trả về; phía gọi phải thoát app ngay sau đó."""
     script = staging_dir() / "apply_update.bat"
-    script.write_text(_updater_script(new_dir), encoding="utf-8")
+    content = _installer_script(new_dir) if is_installer(new_dir) else _updater_script(new_dir)
+    script.write_text(content, encoding="utf-8")
     subprocess.Popen(["cmd", "/c", str(script)], cwd=str(staging_dir()), creationflags=_NO_WINDOW,
                      close_fds=True)
     log.info("Đã khởi chạy script cập nhật: %s", script)

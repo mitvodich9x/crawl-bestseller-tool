@@ -113,10 +113,10 @@ def test_next_run():
 
 def test_build_search_url_matches_site_format():
     url = watchcount.build_search_url("funny shirt", "EBAY_US", "bestselling", "fixedprice", "7days", 20)
-    assert url == ("https://beta.watchcount.com/live/funny+shirt/-/fixedprice"
+    assert url == ("https://www.watchcount.com/live/funny+shirt/-/fixedprice"
                    "?offset=20&site=EBAY_US&sortBy=bestselling&startTimeFrom=7days")
     url = watchcount.build_search_url("a/b", sort_by="watchcount")
-    assert url == "https://beta.watchcount.com/live/a%252Fb/-/fixedprice?site=EBAY_US"
+    assert url == "https://www.watchcount.com/live/a%252Fb/-/fixedprice?site=EBAY_US"
 
 
 def test_start_within_param():
@@ -135,16 +135,16 @@ def test_remaining_quota_user_and_guest():
 
 
 @pytest.mark.parametrize("url,expected", [
-    ("https://beta.watchcount.com/challenge?returnURL=/live/cat+mug", True),
-    ("https://beta.watchcount.com/live/cat+mug/-/fixedprice?site=EBAY_US", False),
+    ("https://www.watchcount.com/challenge?returnURL=/live/cat+mug", True),
+    ("https://www.watchcount.com/live/cat+mug/-/fixedprice?site=EBAY_US", False),
     (None, False),
 ])
 def test_is_challenge_url(url, expected):
     assert watchcount.is_challenge_url(url) is expected
 
 
-def test_run_scan_stops_when_not_logged_in(tmp_path):
-    """Khách chưa đăng nhập bị watchcount đẩy sang trang xác minh -> dừng ngay, không tốn lượt."""
+def test_run_scan_best_selling_needs_login(tmp_path):
+    """Best Selling chỉ dành cho tài khoản -> dừng ngay, không tốn lượt."""
 
     class GuestClient(FakeClient):
         def account_status(self):
@@ -152,12 +152,61 @@ def test_run_scan_stops_when_not_logged_in(tmp_path):
 
     fake = GuestClient()
     db = Database(tmp_path / "t.db")
-    summary = run_scan(db, _cfg(), ["a"], "manual", ScanCallbacks(), lambda: fake)
+    cfg = _cfg()
+    cfg["search"]["sort_by"] = "bestselling"
+    summary = run_scan(db, cfg, ["a"], "manual", ScanCallbacks(), lambda: fake)
     assert summary.status == "need_login"
     assert "Đăng nhập watchcount" in summary.error
     assert summary.pages_used == 0
     assert fake.urls == []
     assert db.list_runs()[0]["status"] == "need_login"
+
+
+def test_run_scan_guest_can_scan_best_match(tmp_path):
+    class GuestClient(FakeClient):
+        def account_status(self):
+            return {"logged_in": False, "usage": {"max_standard": 20, "standard_count": 0}}
+
+    summary = run_scan(Database(tmp_path / "t.db"), _cfg(), ["a"], "manual", ScanCallbacks(), lambda: GuestClient())
+    assert summary.status == "completed"
+
+
+def test_run_scan_reopens_visible_browser_on_challenge(tmp_path):
+    """Chạy ẩn bị reCAPTCHA chặn -> mở cửa sổ hiện cho người dùng tích rồi quét tiếp, không báo 'cần đăng nhập'."""
+
+    class HeadlessClient(FakeClient):
+        headless = True
+
+        def search(self, url, **kwargs):
+            raise watchcount.ChallengeError(watchcount.CHALLENGE_MESSAGE)
+
+    visible = FakeClient()
+    visible.headless = False
+    calls = []
+
+    def factory(headless=True):
+        calls.append(headless)
+        return HeadlessClient() if headless else visible
+
+    alerts = []
+    summary = run_scan(Database(tmp_path / "t.db"), _cfg(), ["a"], "manual",
+                       ScanCallbacks(attention=alerts.append), factory)
+    assert calls == [True, False]
+    assert summary.status == "completed"
+    assert len(visible.urls) == 2
+    assert alerts == [watchcount.CHALLENGE_MESSAGE]
+
+
+def test_run_scan_challenge_not_passed_is_blocked(tmp_path):
+    class StuckClient(FakeClient):
+        headless = False
+
+        def search(self, url, **kwargs):
+            raise watchcount.ChallengeError(watchcount.CHALLENGE_MESSAGE)
+
+    summary = run_scan(Database(tmp_path / "t.db"), _cfg(), ["a"], "manual", ScanCallbacks(), lambda: StuckClient())
+    assert summary.status == "blocked"
+    assert "reCAPTCHA" in summary.error
 
 
 class FakeClient:
@@ -177,7 +226,7 @@ class FakeClient:
     def account_status(self):
         return {"logged_in": True, "usage": {"max_daily_standard_searches": self.quota, "standard_count": 0}}
 
-    def search(self, url):
+    def search(self, url, **kwargs):
         self.urls.append(url)
         offset = int(url.split("offset=")[1].split("&")[0]) if "offset=" in url else 0
         page = offset // 20
@@ -213,7 +262,7 @@ def test_run_scan_counts_each_item_once_when_pages_repeat_items(tmp_path):
     """watchcount repeats items across pages; the summary must not count them twice."""
 
     class RepeatingClient(FakeClient):
-        def search(self, url):
+        def search(self, url, **kwargs):
             self.urls.append(url)
             offset = int(url.split("offset=")[1].split("&")[0]) if "offset=" in url else 0
             page = offset // 20

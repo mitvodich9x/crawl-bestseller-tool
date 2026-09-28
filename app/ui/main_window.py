@@ -317,6 +317,7 @@ class MainWindow(QMainWindow):
         self.scan_worker = ScanWorker(self.db, copy.deepcopy(self.cfg), keywords, trigger)
         self.scan_worker.log_line.connect(self._log)
         self.scan_worker.progress.connect(self._on_progress)
+        self.scan_worker.attention.connect(self._on_scan_attention)
         self.scan_worker.done.connect(self._on_scan_done)
         self.scan_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
@@ -339,6 +340,10 @@ class MainWindow(QMainWindow):
         self.progress.setValue(done)
         if keyword:
             self.status_label.setText(f"Đang quét '{keyword}' ({done + 1}/{total})")
+
+    def _on_scan_attention(self, message: str) -> None:
+        self.status_label.setText(message)
+        self.tray.showMessage(APP_NAME, message, QSystemTrayIcon.MessageIcon.Warning, 15000)
 
     def _on_scan_done(self, summary) -> None:
         self.scan_btn.setEnabled(True)
