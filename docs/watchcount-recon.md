@@ -130,8 +130,14 @@ ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-he
   (tab Live là `/live/...`). Dữ liệu vẫn ở `window.searchResult`, phân trang `offset`/`nextOffset` như Live.
 - Sắp xếp: chỉ `bestmatch`, `price` + `sortOrder=asc|desc`. Watch Count / Newly Listed / Best Selling chỉ có ở Live.
 - Lọc thêm `lastSoldDate`: `1day`, `2days`, `3days`, `7days`, `14days`, `30days`, `45days`, `60days`.
-  `startTimeFrom` vẫn dùng được.
+- `startTimeFrom` **không có tác dụng** ở tab Sold (kiểm tra 2026-09-30): `searchRequest` vẫn nhận giá trị nhưng
+  total và danh sách item y hệt khi bỏ tham số (vd "glass suncatcher", lastSoldDate=7days: 512 cả hai), vẫn có listing
+  đăng 300+ ngày. Tool chỉ gửi `startTimeFrom` với tab Live, còn tab Sold thì lọc Start trong tool.
 - Mỗi trang tốn 1 lượt **standard** (giống Best Match).
-- Item có thêm `lastSoldDate` (ISO), `lastSoldFor`, `lastSoldForFormatted`; `status` = "Active with Sales".
-  Các trường khác (`quantitySold`, `oneUnitEvery`, `startTime`, `watchCount`...) giống tab Live.
+- Item có thêm `lastSoldDate` (ISO), `lastSoldFor`, `lastSoldForFormatted`, `endTime`.
+- Mỗi item là listing **đã bán hết**: `status` = "Sold", `quantityAvailable` = 0, `quantitySold` luôn = 1 (đo 2026-09-30
+  trên 200 item của "glass suncatcher" và "Eileen Fisher"). `oneUnitEvery` / `quantitySoldRate` = 1 đơn / `timeRunning`,
+  nên Tổng đơn và Sell one không phản ánh độ bán chạy. Tool bỏ qua ba điều kiện Tổng đơn, Sell one, Số đơn TB/ngày
+  khi quét tab Sold.
+- Con số watchcount hiện trên web với Last sold = 1 ngày: "glass suncatcher" 82, "Eileen Fisher" 378 (2026-09-30).
 - Mỗi lần mở trang, reCAPTCHA v3 chạy ngầm (`/recaptcha_verify`); profile đã qua xác minh thì không bị chặn.

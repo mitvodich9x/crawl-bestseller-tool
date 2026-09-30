@@ -3,8 +3,13 @@ from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFormLayout, 
                              QPushButton, QScrollArea, QSpinBox, QVBoxLayout, QWidget)
 
 from app.app_version import APP_VERSION
+from app.core import filters
 from app.scraper import watchcount
 from app.ui.widgets.filter_editor import FilterEditor
+
+
+SOLD_FILTER_NOTE = ("Tab Sold: mỗi listing chỉ tính 1 đơn và Sell one chỉ là số ngày listing đã chạy, nên Tổng đơn, "
+                    "Sell one, Số đơn trung bình / ngày bị bỏ qua khi quét tab này.")
 
 
 class SettingsPage(QWidget):
@@ -109,11 +114,10 @@ class SettingsPage(QWidget):
         filter_layout = QVBoxLayout(filter_box)
         self.filter_editor = FilterEditor()
         filter_layout.addWidget(self.filter_editor)
-        hint = QLabel("Start ≤ N ngày cũng được gửi lên watchcount (lọc listing mới) để tiết kiệm lượt. "
-                      "Sell one = số ngày trung bình bán được 1 đơn, vd ≤ 7 / 3 / 1.")
-        hint.setObjectName("hint")
-        hint.setWordWrap(True)
-        filter_layout.addWidget(hint)
+        self.filter_hint = QLabel()
+        self.filter_hint.setObjectName("hint")
+        self.filter_hint.setWordWrap(True)
+        filter_layout.addWidget(self.filter_hint)
         root.addWidget(filter_box)
 
         # general
@@ -149,6 +153,17 @@ class SettingsPage(QWidget):
             self.sort_by.addItem(watchcount.SORT_OPTIONS[key], key)
         self.sort_by.setCurrentIndex(max(0, self.sort_by.findData(watchcount.valid_sort(status, selected or ""))))
         self.last_sold.setEnabled(status == "sold")
+        self._update_filter_hint(status)
+
+    def _update_filter_hint(self, status: str) -> None:
+        if status == "sold":
+            self.filter_editor.set_disabled_fields(filters.SOLD_TAB_IGNORED, SOLD_FILTER_NOTE)
+            self.filter_hint.setText(SOLD_FILTER_NOTE + "\nStart ≤ N ngày chỉ lọc trong tool (watchcount không lọc "
+                                     "ngày đăng ở tab Sold). Muốn ra đúng số sản phẩm như trên web thì để trống ô Start.")
+        else:
+            self.filter_editor.set_disabled_fields(())
+            self.filter_hint.setText("Start ≤ N ngày cũng được gửi lên watchcount (lọc listing mới) để tiết kiệm lượt. "
+                                     "Sell one = số ngày trung bình bán được 1 đơn, vd ≤ 7 / 3 / 1.")
 
     def load_from_config(self) -> None:
         s = self.cfg["search"]

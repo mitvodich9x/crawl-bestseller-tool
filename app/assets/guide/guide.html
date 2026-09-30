@@ -140,17 +140,23 @@ theo ô đó. Mỗi dòng gồm: chỉ số, phép so sánh (&lt;=, &gt;=, &lt;,
 <td>&lt;= 7: bỏ listing đăng quá 7 ngày.</td></tr>
 <tr><td><b>Bán gần nhất</b> (số ngày trước)</td><td>Đơn gần nhất cách đây bao nhiêu ngày (chỉ tab Sold có).</td>
 <td>&lt;= 3: vừa có đơn trong 3 ngày.</td></tr>
-<tr><td><b>Tổng đơn</b></td><td>Tổng số đơn đã bán của listing.</td><td>&gt;= 5</td></tr>
-<tr><td><b>Sell one</b> (số ngày bán 1 đơn)</td><td>Trung bình mấy ngày bán được 1 đơn. Càng nhỏ càng bán chạy.</td>
+<tr><td><b>Tổng đơn</b></td><td>Tổng số đơn đã bán của listing. <i>Chỉ dùng với tab Live.</i></td><td>&gt;= 5</td></tr>
+<tr><td><b>Sell one</b> (số ngày bán 1 đơn)</td><td>Trung bình mấy ngày bán được 1 đơn. Càng nhỏ càng bán chạy.
+<i>Chỉ dùng với tab Live.</i></td>
 <td>&lt;= 7, &lt;= 3 hoặc &lt;= 1</td></tr>
-<tr><td><b>Số đơn trung bình / ngày</b></td><td>Ngược lại với Sell one.</td><td>&gt;= 1</td></tr>
+<tr><td><b>Số đơn trung bình / ngày</b></td><td>Ngược lại với Sell one. <i>Chỉ dùng với tab Live.</i></td><td>&gt;= 1</td></tr>
 <tr><td><b>Lượt theo dõi</b></td><td>Số người đang theo dõi (watch) listing.</td><td>&gt;= 10</td></tr>
 <tr><td><b>Giá (USD)</b></td><td>Giá thấp nhất của listing.</td><td>&lt;= 30</td></tr>
 </table>
 <div class="shot"><img src="settings_filters.png" width="780"></div>
-<p class="cap">Mặc định: đăng trong 7 ngày và trung bình 7 ngày bán được ít nhất 1 đơn.</p>
+<p class="cap">Mặc định: đăng trong 7 ngày và trung bình 7 ngày bán được ít nhất 1 đơn. Ảnh chụp ở tab Sold nên ba ô Tổng đơn, Sell one, Số đơn trung bình / ngày bị làm mờ.</p>
 <table width="100%" cellspacing="0" cellpadding="10" class="tip"><tr><td>
-<b>Mẹo:</b> điều kiện <i>Start &lt;= N</i> còn được gửi thẳng lên watchcount, nên tool chỉ tải listing mới và tốn ít lượt hơn.
+<b>Tab Sold khác tab Live:</b> ở tab Sold, mỗi listing là một sản phẩm đã bán hết nên watchcount luôn ghi <b>1 đơn</b>,
+và Sell one chỉ là số ngày listing đã chạy. Vì vậy khi quét tab Sold, tool <b>bỏ qua</b> ba ô Tổng đơn, Sell one,
+Số đơn trung bình / ngày (các ô này bị làm mờ trong Cài đặt).<br><br>
+Điều kiện <i>Start &lt;= N</i> ở tab Live được gửi thẳng lên watchcount để tiết kiệm lượt. Ở tab Sold watchcount không lọc
+ngày đăng, nên tool tải mọi sản phẩm có đơn rồi mới lọc Start. Ví dụ "glass suncatcher", có đơn trong 1 ngày: web hiện
+khoảng 80 sản phẩm, nhưng chỉ khoảng 1/6 số đó là listing đăng trong 7 ngày. Muốn ra đủ như trên web thì để trống ô Start.
 </td></tr></table>
 
 <!-- ============================================================ -->
@@ -258,6 +264,7 @@ quét trước. Khi gặp lỗi, hãy xem ở đây trước.</p>
 <h3>Quét xong mà không có sản phẩm nào đạt lọc</h3>
 <ul>
 <li>Bỏ tích <b>Chỉ SP đạt bộ lọc khi quét</b> ở trang Kết quả để xem toàn bộ sản phẩm đã lưu.</li>
+<li>Xem trang <b>Log</b>: dưới mỗi trang có dòng <i>bị loại vì: …</i> cho biết điều kiện nào loại bao nhiêu sản phẩm.</li>
 <li>Nới bộ lọc: vd Sell one &lt;= 14, Start &lt;= 30, hoặc để trống bớt ô.</li>
 <li>Tab Sold: tăng <b>Có đơn trong vòng</b> lên 14 hoặc 30 ngày.</li>
 </ul>

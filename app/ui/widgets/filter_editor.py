@@ -14,8 +14,9 @@ class FilterEditor(QWidget):
         grid = QGridLayout(self)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setColumnStretch(2, 1)
-        self._rows: dict[str, tuple[QComboBox, QLineEdit]] = {}
+        self._rows: dict[str, tuple[QLabel, QComboBox, QLineEdit]] = {}
         for row, (field, label) in enumerate(FIELD_LABELS.items()):
+            name = QLabel(label)
             op = QComboBox()
             op.addItems(list(OPERATORS))
             op.setFixedWidth(64)
@@ -23,14 +24,22 @@ class FilterEditor(QWidget):
             value.setPlaceholderText("để trống = không lọc")
             op.currentIndexChanged.connect(self.changed)
             value.textChanged.connect(self.changed)
-            grid.addWidget(QLabel(label), row, 0)
+            grid.addWidget(name, row, 0)
             grid.addWidget(op, row, 1)
             grid.addWidget(value, row, 2)
-            self._rows[field] = (op, value)
+            self._rows[field] = (name, op, value)
+
+    def set_disabled_fields(self, fields, reason: str = "") -> None:
+        """Làm mờ các dòng không dùng được; giá trị vẫn giữ để bật lại khi đổi tab."""
+        for field, widgets in self._rows.items():
+            off = field in fields
+            for widget in widgets:
+                widget.setEnabled(not off)
+                widget.setToolTip(reason if off else "")
 
     def set_rules(self, rules: list[dict]) -> None:
         by_field = {r["field"]: r for r in rules}
-        for field, (op, value) in self._rows.items():
+        for field, (_name, op, value) in self._rows.items():
             rule = by_field.get(field, {})
             op.blockSignals(True)
             value.blockSignals(True)
@@ -42,7 +51,7 @@ class FilterEditor(QWidget):
 
     def rule_dicts(self) -> list[dict]:
         result = []
-        for field, (op, value) in self._rows.items():
+        for field, (_name, op, value) in self._rows.items():
             text = value.text().strip().replace(",", ".")
             try:
                 parsed = float(text) if text else None

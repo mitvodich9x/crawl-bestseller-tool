@@ -24,6 +24,9 @@ QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; font-w
 #hint { color: #6b7280; font-size: 12px; }
 QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit, QTimeEdit, QPlainTextEdit {
     background: white; border: 1px solid #c9d2de; border-radius: 5px; padding: 4px 6px; }
+QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
+    background: #f3f5f9; color: #9aa5b4; border-color: #e3e7ee; }
+QLabel:disabled { color: #9aa5b4; }
 #productCard { background: white; border: 1px solid #e3e7ee; border-radius: 10px; }
 #productCard:hover { border: 1px solid #2563eb; }
 #cardImage { background: #f3f5f9; border-radius: 6px; color: #9aa5b4; }

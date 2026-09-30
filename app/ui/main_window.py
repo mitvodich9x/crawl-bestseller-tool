@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QMa
 
 from app import autostart, config, update_service
 from app.app_version import APP_NAME, APP_VERSION
-from app.core import scheduler
+from app.core import filters, scheduler
 from app.db.database import Database
 from app.ui.pages.guide_page import GuidePage
 from app.ui.pages.keywords_page import KeywordsPage
@@ -71,7 +71,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(content, 1)
         self.setCentralWidget(central)
 
-        self.results_page = ResultsPage(db, lambda: copy.deepcopy(self.cfg["scan_filters"]))
+        self.results_page = ResultsPage(db, lambda: filters.rules_for_status(self.cfg["scan_filters"],
+                                                                             self.cfg["search"].get("status")))
         self.keywords_page = KeywordsPage(db)
         self.settings_page = SettingsPage(cfg)
         self.schedule_page = SchedulePage(cfg)

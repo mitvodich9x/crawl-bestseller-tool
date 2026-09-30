@@ -251,10 +251,11 @@ def test_run_scan_saves_and_marks_kept(tmp_path):
     summary = run_scan(db, _cfg(), ["funny shirt", "cat mug"], "manual", ScanCallbacks(), lambda: fake)
     assert summary.status == "completed"
     assert summary.pages_used == 4
-    assert all("startTimeFrom=7days" in u and "sortBy=bestmatch" in u for u in fake.urls)
+    assert all("sortBy=bestmatch" in u and "startTimeFrom" not in u for u in fake.urls)
     rows = db.query_products(keyword="funny shirt")
     assert {r["item_id"] for r in rows} == {"237065838500", "1", "p1"}
-    assert {r["item_id"] for r in db.query_products(keyword="funny shirt", kept_only=True)} == {"237065838500"}
+    # tab Sold bỏ qua Sell one, chỉ còn Start <= 7 loại item "1"
+    assert {r["item_id"] for r in db.query_products(keyword="funny shirt", kept_only=True)} == {"237065838500", "p1"}
     assert db.list_runs()[0]["status"] == "completed"
 
 
@@ -292,7 +293,7 @@ def test_run_scan_take_all_pages_when_early_stop_disabled(tmp_path):
     fake = FakeClient(pages=50)
     summary = run_scan(Database(tmp_path / "t.db"), cfg, ["a"], "manual", ScanCallbacks(), lambda: fake)
     assert summary.pages_used == 50
-    assert fake.urls[-1].endswith("offset=980&site=EBAY_US&sortBy=bestmatch&startTimeFrom=7days")
+    assert fake.urls[-1].endswith("offset=980&site=EBAY_US&sortBy=bestmatch")
 
 
 def test_run_scan_max_pages_caps_a_long_keyword(tmp_path):
@@ -315,7 +316,42 @@ def test_default_scan_uses_sold_tab(tmp_path):
     fake = FakeClient()
     run_scan(Database(tmp_path / "t.db"), _cfg(), ["cat mug"], "manual", ScanCallbacks(), lambda: fake)
     assert fake.urls[0] == ("https://www.watchcount.com/sold/cat+mug/-/fixedprice"
-                            "?lastSoldDate=7days&site=EBAY_US&sortBy=bestmatch&startTimeFrom=7days")
+                            "?lastSoldDate=7days&site=EBAY_US&sortBy=bestmatch")
+
+
+def test_live_scan_applies_sell_one_and_sends_start_filter(tmp_path):
+    db = Database(tmp_path / "t.db")
+    fake = FakeClient()
+    cfg = _cfg()
+    cfg["search"]["status"] = "live"
+    run_scan(db, cfg, ["funny shirt"], "manual", ScanCallbacks(), lambda: fake)
+    assert all("/live/" in u and "startTimeFrom=7days" in u for u in fake.urls)
+    assert {r["item_id"] for r in db.query_products(kept_only=True)} == {"237065838500"}
+
+
+def test_sold_tab_ignores_sales_metrics():
+    items = config.DEFAULTS["scan_filters"] + [{"field": "total_sold", "op": ">=", "value": 5}]
+    sold = {d["field"]: d["value"] for d in filters.rules_for_status(items, "sold")}
+    assert sold["days_per_sale"] is None and sold["total_sold"] is None and sold["start_age_days"] == 7
+    assert filters.rules_for_status(items, "live") == items
+    assert {d["field"] for d in filters.ignored_for_status(items, "sold")} == {"days_per_sale", "total_sold"}
+    assert filters.ignored_for_status(items, "live") == []
+
+
+def test_rejection_counts_per_rule():
+    fresh = parse_item(RAW)
+    old = parse_item({**RAW, "id": "2", "startTime": iso_days_ago(30), "oneUnitEvery": "1.0 sold/month"})
+    rules = filters.rules_from_config(config.DEFAULTS["scan_filters"])
+    assert filters.rejection_counts([fresh, old], rules) == {
+        "Start (số ngày từ lúc đăng) <= 7": 1, "Sell one (số ngày bán 1 đơn) <= 7": 1}
+
+
+def test_scan_log_explains_rejections(tmp_path):
+    messages = []
+    run_scan(Database(tmp_path / "t.db"), _cfg(), ["a"], "manual", ScanCallbacks(log=messages.append),
+             lambda: FakeClient(pages=1))
+    assert any(m.startswith("Tab Sold: bỏ qua điều kiện Sell one") for m in messages)
+    assert any("bị loại vì: Start (số ngày từ lúc đăng) <= 7 (1 SP)" in m for m in messages)
 
 
 def test_sold_tab_falls_back_to_best_match_for_live_only_sorts():

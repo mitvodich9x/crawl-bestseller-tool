@@ -51,8 +51,9 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
              cb: ScanCallbacks | None = None, client_factory=None) -> ScanSummary:
     cb = cb or ScanCallbacks()
     search_cfg = cfg["search"]
-    rules = filters.rules_from_config(cfg["scan_filters"])
     status = search_cfg.get("status") or "live"
+    ignored_rules = filters.ignored_for_status(cfg["scan_filters"], status)
+    rules = filters.rules_from_config(filters.rules_for_status(cfg["scan_filters"], status))
     sort_by = watchcount.valid_sort(status, search_cfg["sort_by"])
     last_sold_within = search_cfg.get("last_sold_within") or None
     max_pages = max(1, int(search_cfg["max_pages"]))
@@ -64,6 +65,11 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
     def say(msg: str) -> None:
         log.info(msg)
         cb.log(msg)
+
+    if ignored_rules:
+        names = ", ".join(filters.FilterRule.from_dict(d).describe() for d in ignored_rules)
+        say(f"Tab Sold: bỏ qua điều kiện {names} (listing ở tab Sold luôn chỉ có 1 đơn, "
+            f"sell one chỉ là số ngày listing đã chạy)")
 
     if not keywords:
         summary.status, summary.error = "failed", "Chưa có từ khoá nào được bật"
@@ -145,6 +151,9 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
                 kept_ids_all |= kept_ids
                 say(f"   trang {page_no + 1}: {len(products)} sản phẩm ({len(new_ids)} mới), "
                     f"{len(kept_ids)} đạt bộ lọc (tổng kết quả: {result.get('total')})")
+                rejected = filters.rejection_counts(products, rules)
+                if rejected:
+                    say("      bị loại vì: " + "; ".join(f"{name} ({count} SP)" for name, count in rejected.items()))
 
                 empty_streak = 0 if any(p["total_sold"] > 0 for p in products) else empty_streak + 1
                 if not products or result.get("nextOffset") is None:

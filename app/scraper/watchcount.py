@@ -134,7 +134,7 @@ def build_search_url(keyword: str, site: str = "EBAY_US", sort_by: str = "bestma
     status = status if status in STATUS_OPTIONS else "live"
     sort_params, _ = _SORT_PARAMS[valid_sort(status, sort_by)]
     params = {"site": site, **sort_params}
-    if start_within:
+    if status == "live" and start_within:  # tab Sold nhận tham số nhưng không lọc theo nó
         params["startTimeFrom"] = start_within
     if status == "sold" and last_sold_within:
         params["lastSoldDate"] = last_sold_within
