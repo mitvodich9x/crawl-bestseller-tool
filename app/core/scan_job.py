@@ -59,6 +59,7 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
     max_pages = max(1, int(search_cfg["max_pages"]))
     stop_after_empty = int(search_cfg["stop_after_empty_pages"])  # 0 = quét hết trang, không dừng sớm
     start_within = watchcount.start_within_param(_max_start_age(rules))
+    exact_match = bool(search_cfg.get("exact_match"))
 
     summary = ScanSummary(run_id=db.start_run(trigger))
 
@@ -124,7 +125,12 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
                 url = watchcount.build_search_url(keyword, search_cfg["site"], sort_by,
                                                   search_cfg["listing_type"], start_within, offset,
                                                   status=status, last_sold_within=last_sold_within,
-                                                  condition=search_cfg.get("condition") or None)
+                                                  condition=search_cfg.get("condition") or None,
+                                                  category=search_cfg.get("category") or None,
+                                                  min_price=search_cfg.get("min_price"),
+                                                  max_price=search_cfg.get("max_price"),
+                                                  exact_match=exact_match,
+                                                  extra_params=search_cfg.get("extra_params"))
                 if page_no == 0:
                     say(f"   link trang 1: {url}")  # mở link này trên web để so kết quả với tool
                 try:
@@ -158,8 +164,11 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
                 if rejected:
                     say("      bị loại vì: " + "; ".join(f"{name} ({count} SP)" for name, count in rejected.items()))
 
-                empty_streak = 0 if any(p["total_sold"] > 0 for p in products) else empty_streak + 1
-                if not products or result.get("nextOffset") is None:
+                # Exact Match: watchcount lọc trên từng trang 20 SP sau khi lấy, nên trang trống chưa phải là hết kết quả
+                # và cũng không tính là trang không có đơn; hết thật thì nextOffset rỗng
+                if products or not exact_match:
+                    empty_streak = 0 if any(p["total_sold"] > 0 for p in products) else empty_streak + 1
+                if (not products and not exact_match) or result.get("nextOffset") is None:
                     break
                 if 0 < stop_after_empty <= empty_streak:
                     say(f"   {empty_streak} trang liền không có đơn nào, chuyển từ khoá")

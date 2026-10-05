@@ -1,9 +1,11 @@
 """Chụp ảnh minh hoạ cho trang Hướng dẫn (app/assets/guide/*.png) từ chính giao diện app.
 
-Chạy: python tools/make_guide_images.py [--no-captcha]
+Chạy: python tools/make_guide_images.py [--no-captcha] [--web]
 App chạy ẩn trên một thư mục data tạm với dữ liệu mẫu (tools/guide_sample.json), không đụng tới
 database, phiên đăng nhập hay autostart thật. Ảnh sản phẩm tải từ eBay nên cần mạng.
 Ảnh trang xác minh reCAPTCHA chụp bằng Playwright với một profile trình duyệt mới.
+--web: chụp khung tìm kiếm trên web watchcount bằng profile thật của app (data/browser_profile, phải đã qua
+reCAPTCHA), mở cửa sổ trình duyệt và tốn 2 lượt standard.
 """
 import copy
 import json
@@ -19,6 +21,9 @@ sys.path.insert(0, str(ROOT))
 from app import autostart, paths  # noqa: E402
 
 OUT = ROOT / "app" / "assets" / "guide"
+REAL_PROFILE = ROOT / "data" / "browser_profile"  # lấy trước khi data_dir bị trỏ sang thư mục tạm
+SAMPLE_LINK = ("https://www.watchcount.com/sold/Personalized+suncatcher/-/all"
+               "?condition=new&lastSoldDate=30days&offset=60&site=EBAY_US&sortBy=bestmatch")
 TMP = Path(tempfile.mkdtemp(prefix="bc_guide_"))
 paths.data_dir = lambda: TMP  # mọi đường dẫn data của app trỏ vào thư mục tạm
 autostart.set_enabled = lambda enabled: None  # không sửa autostart thật của máy
@@ -113,13 +118,23 @@ def shoot_app() -> None:
     save(group(settings, "Bộ lọc"), "settings_filters.png")
     save(group(settings, "Chung"), "settings_general.png")
 
-    # 3b. Cài đặt khớp link mẫu ở mục "Cào giống một link watchcount" của trang Hướng dẫn
+    # 3b. Dán link mẫu ở mục "Cào giống một link watchcount" của trang Hướng dẫn
+    from app.scraper import watchcount
+
     saved = copy.deepcopy(settings.cfg)
-    settings.cfg["search"].update(status="sold", last_sold_within="30days", site="EBAY_US", sort_by="bestmatch",
-                                  listing_type="all", condition="new", max_pages=10, stop_after_empty_pages=0)
-    for rule in settings.cfg["scan_filters"]:
-        rule["value"] = None
-    settings.load_from_config()
+    settings.link_input.setText(SAMPLE_LINK)
+    settings.link_input.setCursorPosition(0)
+    save(group(settings, "Dán link"), "paste_link.png")
+    parsed = watchcount.parse_search_url(SAMPLE_LINK)
+    box = settings.link_confirm_box(parsed)
+    box.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
+    box.show()
+    save(box, "link_confirm.png")
+    box.close()
+    settings.apply_parsed_link(parsed, clear_filters=True)
+    settings.max_pages.setValue(10)
+    settings.take_all_pages.setChecked(True)
+    settings.link_input.clear()
     save(group(settings, "Tìm kiếm"), "link_search.png")
     save(group(settings, "Bộ lọc"), "link_filters.png")
     settings.cfg.clear()
@@ -199,12 +214,46 @@ def shoot_captcha() -> None:
         client.close()
 
 
+def shoot_web() -> None:
+    """Khung tìm kiếm trên web watchcount (tab Sold, tab Live, bảng Additional Filters)."""
+    from app.scraper import watchcount
+
+    client = watchcount.WatchcountClient(REAL_PROFILE, headless=False)
+    client.start()
+    try:
+        page = client.page
+        page.set_viewport_size({"width": 1400, "height": 1000})
+        live_link = SAMPLE_LINK.replace("/sold/", "/live/").replace("lastSoldDate=30days&offset=60&", "")
+        for link, name in ((SAMPLE_LINK, "web_form_sold.png"), (live_link, "web_form_live.png")):
+            client.search(link)
+            page.wait_for_timeout(1500)
+            ok = page.locator(".modal.show button", has_text="OK")  # hộp "Time Zone Updated"
+            if ok.count():
+                ok.first.click()
+            page.locator("[href='#sfilter-container'], [data-bs-target='#sfilter-container']").first.click()
+            page.wait_for_timeout(1200)
+            page.locator("#sfilter-container").screenshot(path=str(OUT / name))
+            print("  ", name)
+        page.locator("a#additional-filter-button").click()
+        page.wait_for_timeout(1200)
+        # chụp tới hết nút Reset, bỏ phần trắng bên dưới
+        panel = page.locator("#additional-filters-offcanvas").bounding_box()
+        bottom = page.locator("#additional-filters-offcanvas button", has_text="Reset").last.bounding_box()
+        clip = {**panel, "height": bottom["y"] + bottom["height"] + 24 - panel["y"]}
+        page.screenshot(path=str(OUT / "web_more_filters.png"), clip=clip)
+        print("   web_more_filters.png")
+    finally:
+        client.close()
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     print(f"Thư mục data tạm: {TMP}")
     shoot_app()
     if "--no-captcha" not in sys.argv:
         shoot_captcha()
+    if "--web" in sys.argv:
+        shoot_web()
     return 0
 
 

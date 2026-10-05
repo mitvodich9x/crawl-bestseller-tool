@@ -92,6 +92,7 @@ class MainWindow(QMainWindow):
         self.nav.setCurrentRow(0 if db.list_keywords() else self.nav.count() - 1)
 
         self.settings_page.save_requested.connect(self._save_settings)
+        self.settings_page.link_applied.connect(self._on_link_applied)
         self.settings_page.login_requested.connect(lambda: self._run_account("login"))
         self.settings_page.check_account_requested.connect(lambda: self._run_account("check"))
         self.settings_page.check_update_requested.connect(lambda: self.check_update(silent=False))
@@ -174,6 +175,23 @@ class MainWindow(QMainWindow):
         self._sync_autostart()
         self.settings_page.load_from_config()
         self.status_label.setText("Đã lưu cài đặt")
+
+    def _on_link_applied(self, keyword: str) -> None:
+        """Áp dụng link watchcount: lưu cài đặt, thêm (hoặc bật lại) từ khoá trong link."""
+        self._save_settings()
+        if not keyword:
+            QMessageBox.information(self, "Đã áp dụng link", "Đã lưu cài đặt quét theo link (link không có từ khoá).")
+            return
+        added = self.db.add_keywords([keyword])
+        row = next((r for r in self.db.list_keywords() if r["keyword"].lower() == " ".join(keyword.split()).lower()), None)
+        if row and not row["enabled"]:
+            self.db.set_keyword_enabled(row["id"], True)
+        self.keywords_page.reload()
+        state = "đã thêm vào danh sách Từ khoá" if added else "đã có trong danh sách Từ khoá (đang bật)"
+        QMessageBox.information(self, "Đã áp dụng link",
+                                f"Đã lưu cài đặt quét theo link. Từ khoá \"{keyword}\" {state}.\n\n"
+                                "Bấm ▶ Quét ngay để quét. Muốn chỉ quét từ khoá này thì tắt các từ khoá khác ở trang "
+                                "Từ khoá.")
 
     def _save_schedule(self) -> None:
         self.schedule_page.write_to_config()

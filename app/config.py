@@ -19,6 +19,15 @@ DEFAULTS = {
         "site": "EBAY_US",
         # tình trạng hàng: "" (tất cả) | new | used
         "condition": "",
+        # danh mục: "" (tất cả) hoặc đoạn URL của watchcount, vd home-garden_11700
+        "category": "",
+        # khoảng giá (USD) lọc ngay trên watchcount, null = không lọc
+        "min_price": None,
+        "max_price": None,
+        # chỉ lấy sản phẩm chứa đúng từ khoá (Exact Match Keywords)
+        "exact_match": False,
+        # tham số khác lấy từ link dán vào (seller, freeShippingOnly, itemLocation...), gửi kèm khi quét
+        "extra_params": {},
         # bestmatch/listdate -> standard quota, watchcount -> most-watched quota, bestselling -> monthly quota
         "sort_by": "bestmatch",
         "listing_type": "fixedprice",

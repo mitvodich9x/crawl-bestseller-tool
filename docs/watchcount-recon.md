@@ -148,3 +148,25 @@ ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-he
 - Quét lại bằng tool với cùng điều kiện, bộ lọc để trống: 9 trang, 167 item không trùng (total dao động 164–165 khi lật
   trang). Chỉ 1/167 item có Start ≤ 7 ngày, nên bộ lọc mặc định gần như loại hết.
 - Ở tab Sold, Best Match trả item theo `lastSoldDate` giảm dần.
+
+## Khung tìm kiếm trên web và các bộ lọc khác (khảo sát 2026-10-05)
+Trang kết quả: nút **Edit Search** mở khung tìm kiếm (`#sfilter-container`), nút **Additional Filters** mở bảng bên phải
+(`#additional-filters-offcanvas`).
+
+| Ô trên web | Tham số | Tab |
+|---|---|---|
+| Category (ô "Search categories...", hoặc cột danh mục bên trái) | đoạn path `{slug}_{id}`, vd `home-garden_11700` | Live + Sold |
+| Min / Max Price (USD) | `minPrice=10`, `maxPrice=30` | Live + Sold |
+| Exact Match Keywords | `exactKeywordMatch=true` | Live + Sold |
+| Seller | `seller` | Live |
+| Free Shipping Only, Search Description, Returns Accepted, Charity | `freeShippingOnly`, `descriptionSearch`, `returnsAccepted`, `charityOnly` | Live |
+| Newly Listed Within / Listed Long Ago / Ending Within | `startTimeFrom` / `startTimeTo` / `endTimeTo` | Live |
+| Additional Filters: Delivers To, Exclude Sellers, Exclude Categories, Item Location, Pickup Options | `deliversToCountry`, `excludeSellers`, `excludeCategories`, `itemLocation`, `deliveryOptions` | Live (Sold chỉ có Item Location) |
+
+- 35 danh mục gốc eBay US lấy từ cột trái (`app/scraper/watchcount.py` CATEGORIES). Danh mục con chỉ có qua dán link.
+- "Personalized suncatcher", sold, condition=new, 30days: exactKeywordMatch 146, maxPrice=30 126, minPrice=10 162
+  (vẫn có SP giá 9.73), cả Exact + 10–30 USD là 104 (không lọc là 165).
+- **Exact Match lọc trên từng trang 20 SP sau khi lấy**: web vẫn ghi "Showing 100 results" nhưng trang 1 chỉ có 1 SP,
+  `nextOffset` vẫn tiếp tục; hết thật thì `nextOffset` = null. Quét Home & Garden + 10–30 USD + Exact: 6 trang, 14 SP
+  (1, 2, 2, 5, 4, 0 SP mỗi trang). Tool không dừng ở trang trống khi bật Exact Match, chỉ dừng khi hết `nextOffset`.
+- Tool đọc link dán vào bằng `parse_search_url`; tham số chưa có ô riêng giữ trong `extra_params` và gửi kèm khi quét.

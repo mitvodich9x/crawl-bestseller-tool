@@ -6,8 +6,9 @@ The profile keeps the watchcount login cookie and the reCAPTCHA pass, so the use
 """
 import json
 import logging
+import re
 import time
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, unquote, urlsplit
 
 from playwright.sync_api import BrowserContext, Page, Playwright, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
@@ -53,6 +54,26 @@ LAST_SOLD_OPTIONS = {
 }
 # bộ lọc "Condition" (tình trạng hàng) của watchcount, dùng cho cả hai tab
 CONDITIONS = {"": "Tất cả", "new": "New (hàng mới)", "used": "Used (hàng đã dùng)"}
+# danh mục gốc của eBay US (cột trái trang kết quả watchcount), dạng {đoạn URL: tên}; danh mục con chỉ có qua dán link
+CATEGORIES = {
+    "": "Tất cả danh mục",
+    "antiques_20081": "Antiques", "art_550": "Art", "baby_2984": "Baby",
+    "books-magazines_267": "Books & Magazines", "business-industrial_12576": "Business & Industrial",
+    "cameras-photo_625": "Cameras & Photo", "cell-phones-accessories_15032": "Cell Phones & Accessories",
+    "clothing-shoes-accessories_11450": "Clothing, Shoes & Accessories", "coins-paper-money_11116": "Coins & Paper Money",
+    "collectibles_1": "Collectibles", "computerstablets-networking_58058": "Computers/Tablets & Networking",
+    "consumer-electronics_293": "Consumer Electronics", "crafts_14339": "Crafts", "dolls-bears_237": "Dolls & Bears",
+    "ebay-motors_6000": "eBay Motors", "entertainment-memorabilia_45100": "Entertainment Memorabilia",
+    "everything-else_99": "Everything Else", "gift-cards-coupons_172008": "Gift Cards & Coupons",
+    "health-beauty_26395": "Health & Beauty", "home-garden_11700": "Home & Garden",
+    "jewelry-watches_281": "Jewelry & Watches", "movies-tv_11232": "Movies & TV", "music_11233": "Music",
+    "musical-instruments-gear_619": "Musical Instruments & Gear", "pet-supplies_1281": "Pet Supplies",
+    "pottery-glass_870": "Pottery & Glass", "real-estate_10542": "Real Estate", "specialty-services_316": "Specialty Services",
+    "sporting-goods_888": "Sporting Goods", "sports-mem-cards-fan-shop_64482": "Sports Mem, Cards & Fan Shop",
+    "stamps_260": "Stamps", "tickets-experiences_1305": "Tickets & Experiences", "toys-hobbies_220": "Toys & Hobbies",
+    "travel_3252": "Travel", "video-games-consoles_1249": "Video Games & Consoles",
+}
+_CATEGORY_RE = re.compile(r"^[a-z0-9-]*_\d+$")
 LISTING_TYPES = {"fixedprice": "Fixed-Price / BIN", "all": "Tất cả", "auction": "Đấu giá", "bestoffer": "Best Offer"}
 SITES = ["EBAY_US", "EBAY_GB", "EBAY_AU", "EBAY_CA", "EBAY_DE", "EBAY_FR", "EBAY_IT", "EBAY_ES"]
 
@@ -125,6 +146,14 @@ def _encode_segment(value: str) -> str:
     return quote(value, safe="").replace("%20", "+").replace("%2F", "%252F")
 
 
+def category_label(category: str) -> str:
+    """Tên hiển thị của danh mục; danh mục con (từ link dán vào) thì dựng từ đoạn URL, vd home-decor_10033."""
+    if category in CATEGORIES:
+        return CATEGORIES[category]
+    slug, _, cat_id = category.rpartition("_")
+    return f"{slug.replace('-', ' ').title()} (#{cat_id})"
+
+
 def valid_sort(status: str, sort_by: str) -> str:
     """Kiểu sắp xếp không có ở tab đang chọn thì về Best Match."""
     return sort_by if sort_by in SORTS_BY_STATUS.get(status, SORTS_BY_STATUS["live"]) else "bestmatch"
@@ -133,20 +162,116 @@ def valid_sort(status: str, sort_by: str) -> str:
 def build_search_url(keyword: str, site: str = "EBAY_US", sort_by: str = "bestmatch",
                      listing_type: str = "fixedprice", start_within: str | None = None, offset: int = 0,
                      *, status: str = "live", last_sold_within: str | None = None,
-                     condition: str | None = None) -> str:
+                     condition: str | None = None, category: str | None = None, min_price: float | None = None,
+                     max_price: float | None = None, exact_match: bool = False,
+                     extra_params: dict | None = None) -> str:
     status = status if status in STATUS_OPTIONS else "live"
     sort_params, _ = _SORT_PARAMS[valid_sort(status, sort_by)]
-    params = {"site": site, **sort_params}
+    # tham số lấy nguyên từ link dán vào (seller, freeShippingOnly, itemLocation...), không được đè các ô tool tự quản
+    params = {k: v for k, v in (extra_params or {}).items() if k not in RESERVED_PARAMS and v not in (None, "")}
+    params.update({"site": site, **sort_params})
     if status == "live" and start_within:  # tab Sold nhận tham số nhưng không lọc theo nó
         params["startTimeFrom"] = start_within
     if status == "sold" and last_sold_within:
         params["lastSoldDate"] = last_sold_within
     if condition:
         params["condition"] = condition
+    if min_price:
+        params["minPrice"] = f"{min_price:g}"
+    if max_price:
+        params["maxPrice"] = f"{max_price:g}"
+    if exact_match:
+        params["exactKeywordMatch"] = "true"
     if offset:
         params["offset"] = str(offset)
     query = "&".join(f"{k}={quote(str(v), safe='')}" for k, v in sorted(params.items()))
-    return f"{BASE_URL}/{status}/{_encode_segment(keyword.strip() or '-')}/-/{listing_type}?{query}"
+    category = category if category and _CATEGORY_RE.match(category) else "-"
+    return f"{BASE_URL}/{status}/{_encode_segment(keyword.strip() or '-')}/{category}/{listing_type}?{query}"
+
+
+# các tham số tool tự dựng khi quét; phần còn lại của link dán vào được giữ trong extra_params
+RESERVED_PARAMS = {"site", "sortBy", "sortOrder", "offset", "startTimeFrom", "lastSoldDate", "condition",
+                   "minPrice", "maxPrice", "exactKeywordMatch"}
+_SORT_FROM_LINK = {"bestmatch": "bestmatch", "listdate": "listdate", "watchcount": "watchcount",
+                   "bestselling": "bestselling"}
+_START_FROM_RE = re.compile(r"^(\d+)(hour|day|year)s?$")
+
+
+def _start_days(value: str) -> float | None:
+    match = _START_FROM_RE.match(value or "")
+    if not match:
+        return None
+    count, unit = int(match.group(1)), match.group(2)
+    return count / 24 if unit == "hour" else count * 365 if unit == "year" else count
+
+
+def parse_search_url(url: str) -> dict:
+    """Đọc link tìm kiếm của watchcount thành các ô cài đặt của tool. Link sai thì báo ValueError."""
+    parts = urlsplit((url or "").strip())
+    if "watchcount.com" not in parts.netloc.lower():
+        raise ValueError("Đây không phải link của watchcount.com")
+    segments = [seg for seg in parts.path.split("/") if seg]
+    if len(segments) < 2 or segments[0] not in STATUS_OPTIONS:
+        raise ValueError("Link phải là trang kết quả tìm kiếm, dạng watchcount.com/sold/<từ khoá>/... "
+                         "hoặc watchcount.com/live/<từ khoá>/...")
+    status = segments[0]
+    keyword = unquote(segments[1].replace("+", " ")).replace("%2F", "/").strip()
+    category = segments[2] if len(segments) > 2 and _CATEGORY_RE.match(segments[2]) else ""
+    listing_type = segments[3] if len(segments) > 3 and segments[3] in LISTING_TYPES else "all"
+    query = dict(parse_qsl(parts.query, keep_blank_values=False))
+    notes = []
+
+    sort_raw = query.get("sortBy")
+    if sort_raw == "price":
+        sort_by = "price_desc" if query.get("sortOrder") == "desc" else "price_asc"
+    elif sort_raw is None:
+        sort_by = "watchcount" if status == "live" else "bestmatch"  # mặc định của từng tab trên web
+    elif sort_raw in _SORT_FROM_LINK:
+        sort_by = _SORT_FROM_LINK[sort_raw]
+    else:
+        sort_by = "bestmatch"
+        notes.append(f"Tool chưa có kiểu sắp xếp \"{sort_raw}\", dùng Best Match")
+    if valid_sort(status, sort_by) != sort_by:
+        notes.append(f"Tab Sold không sắp xếp được theo {SORT_OPTIONS[sort_by].split(' (')[0]}, dùng Best Match")
+        sort_by = "bestmatch"
+
+    site = query.get("site") or "EBAY_US"
+    if site not in SITES:
+        notes.append(f"Tool chưa có eBay site {site}, dùng EBAY_US")
+        site = "EBAY_US"
+    last_sold = query.get("lastSoldDate") or ""
+    if last_sold not in LAST_SOLD_OPTIONS:
+        notes.append(f"Tool chưa có \"Có đơn trong vòng\" = {last_sold}, để Không giới hạn")
+        last_sold = ""
+    condition = query.get("condition") or ""
+    if condition not in CONDITIONS:
+        notes.append(f"Tool chưa có Condition = {condition}, để Tất cả")
+        condition = ""
+
+    def price(key):
+        try:
+            value = float(query[key])
+        except (KeyError, ValueError):
+            return None
+        return value if value > 0 else None
+
+    start_days = _start_days(query.get("startTimeFrom", "")) if status == "live" else None
+    return {
+        "status": status,
+        "keyword": "" if keyword == "-" else keyword,
+        "category": category,
+        "listing_type": listing_type,
+        "sort_by": sort_by,
+        "site": site,
+        "last_sold_within": last_sold if status == "sold" else "",
+        "condition": condition,
+        "min_price": price("minPrice"),
+        "max_price": price("maxPrice"),
+        "exact_match": query.get("exactKeywordMatch", "").lower() == "true",
+        "start_age_days": start_days,
+        "extra_params": {k: v for k, v in query.items() if k not in RESERVED_PARAMS},
+        "notes": notes,
+    }
 
 
 def quota_bucket(sort_by: str) -> str:
