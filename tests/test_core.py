@@ -362,6 +362,15 @@ def test_sold_tab_falls_back_to_best_match_for_live_only_sorts():
     assert url.endswith("?lastSoldDate=30days&site=EBAY_US&sortBy=price&sortOrder=desc")
 
 
+def test_sold_url_with_condition_matches_web_link():
+    # link mẫu trong trang Hướng dẫn, mục "Cào ra kết quả giống một link watchcount"
+    url = watchcount.build_search_url("Personalized suncatcher", "EBAY_US", "bestmatch", "all", None, 60,
+                                      status="sold", last_sold_within="30days", condition="new")
+    assert url == ("https://www.watchcount.com/sold/Personalized+suncatcher/-/all"
+                   "?condition=new&lastSoldDate=30days&offset=60&site=EBAY_US&sortBy=bestmatch")
+    assert "condition" not in watchcount.build_search_url("x", status="sold", condition="")
+
+
 def test_live_tab_ignores_last_sold_filter():
     url = watchcount.build_search_url("x", status="live", last_sold_within="7days")
     assert "lastSoldDate" not in url and "/live/" in url

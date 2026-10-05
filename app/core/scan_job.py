@@ -123,7 +123,10 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
                     break
                 url = watchcount.build_search_url(keyword, search_cfg["site"], sort_by,
                                                   search_cfg["listing_type"], start_within, offset,
-                                                  status=status, last_sold_within=last_sold_within)
+                                                  status=status, last_sold_within=last_sold_within,
+                                                  condition=search_cfg.get("condition") or None)
+                if page_no == 0:
+                    say(f"   link trang 1: {url}")  # mở link này trên web để so kết quả với tool
                 try:
                     result = _search_with_retry(client, url, say, cb.should_stop)
                 except watchcount.ChallengeError:

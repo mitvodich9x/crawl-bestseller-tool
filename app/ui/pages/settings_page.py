@@ -78,6 +78,9 @@ class SettingsPage(QWidget):
         self.site = QComboBox()
         self.site.addItems(watchcount.SITES)
         self.sort_by = QComboBox()
+        self.condition = QComboBox()
+        for key, label in watchcount.CONDITIONS.items():
+            self.condition.addItem(label, key)
         self.listing_type = QComboBox()
         for key, label in watchcount.LISTING_TYPES.items():
             self.listing_type.addItem(label, key)
@@ -93,6 +96,7 @@ class SettingsPage(QWidget):
         form.addRow("eBay site", self.site)
         form.addRow("Sắp xếp", self.sort_by)
         form.addRow("Loại listing", self.listing_type)
+        form.addRow("Tình trạng (Condition)", self.condition)
         form.addRow("Số trang tối đa / từ khoá (20 SP/trang)", self.max_pages)
         form.addRow("Dừng từ khoá sau N trang liền không có đơn", self.stop_after_empty)
         form.addRow("", self.take_all_pages)
@@ -172,6 +176,7 @@ class SettingsPage(QWidget):
         self._fill_sorts(s["sort_by"])
         self.site.setCurrentText(s["site"])
         self.listing_type.setCurrentIndex(max(0, self.listing_type.findData(s["listing_type"])))
+        self.condition.setCurrentIndex(max(0, self.condition.findData(s.get("condition") or "")))
         self.max_pages.setValue(int(s["max_pages"]))
         take_all = int(s["stop_after_empty_pages"]) <= 0
         self.take_all_pages.setChecked(take_all)
@@ -192,6 +197,7 @@ class SettingsPage(QWidget):
         s["site"] = self.site.currentText()
         s["sort_by"] = self.sort_by.currentData()
         s["listing_type"] = self.listing_type.currentData()
+        s["condition"] = self.condition.currentData()
         if s["sort_by"] == "bestselling":
             s["listing_type"] = "fixedprice"  # watchcount only allows best selling on fixed-price listings
         s["max_pages"] = self.max_pages.value()

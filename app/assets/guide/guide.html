@@ -44,6 +44,7 @@ Tool có thể tự quét theo lịch, kể cả khi bạn không ngồi trướ
 <li><a href="#keywords">Thêm từ khoá</a></li>
 <li><a href="#search">Chọn tab tìm kiếm: Sold hay Live</a></li>
 <li><a href="#filters">Bộ lọc khi quét</a></li>
+<li><a href="#link">Cào ra kết quả giống một link watchcount</a></li>
 <li><a href="#scan">Quét và xác minh "I'm not a robot"</a></li>
 <li><a href="#results">Xem kết quả và xuất Excel</a></li>
 <li><a href="#schedule">Lịch quét tự động</a></li>
@@ -79,7 +80,7 @@ Nếu chưa có tài khoản, đăng ký miễn phí tại <a href="https://www.
 <li>Bấm <span class="key">Đăng nhập watchcount (mở trình duyệt)</span>. Một cửa sổ trình duyệt hiện ra.</li>
 <li>Đăng nhập bằng email/mật khẩu hoặc Google như bình thường. Tool <b>không lưu mật khẩu</b>.</li>
 <li>Sau khi đăng nhập, tool mở thử một trang tìm kiếm. Nếu thấy ô <b>I'm not a robot</b> thì tích vào
-(xem <a href="#captcha">mục 6</a>). Xong thì cửa sổ tự đóng.</li>
+(xem <a href="#captcha">mục 7</a>). Xong thì cửa sổ tự đóng.</li>
 <li>Bấm <span class="key">Kiểm tra tài khoản &amp; lượt còn lại</span> để xem số lượt còn lại hôm nay.</li>
 </ol>
 <div class="shot"><img src="settings_account.png" width="780"></div>
@@ -118,7 +119,8 @@ Mặc định 7 ngày. Ô này chỉ dùng với tab Sold.</li>
 <li><b>eBay site</b>: chợ eBay cần tìm (EBAY_US là eBay Mỹ).</li>
 <li><b>Sắp xếp</b>: tab Sold chỉ có <i>Best Match</i> và <i>theo giá</i>; tab Live có thêm <i>Watch Count</i>,
 <i>Newly Listed</i>, <i>Best Selling</i>. Đổi tab thì danh sách này tự đổi theo.</li>
-<li><b>Loại listing</b>: nên để <i>Fixed-Price / BIN</i> (giá cố định).</li>
+<li><b>Loại listing</b>: nên để <i>Fixed-Price / BIN</i> (giá cố định), hoặc <i>Tất cả</i> để lấy cả đấu giá.</li>
+<li><b>Tình trạng (Condition)</b>: <i>Tất cả</i>, <i>New</i> (hàng mới) hoặc <i>Used</i> (hàng đã dùng). Hàng POD nên chọn <i>New</i>.</li>
 <li><b>Số trang tối đa / từ khoá</b>: mỗi trang 20 sản phẩm và tốn 1 lượt. Muốn lấy hết sản phẩm của một từ khoá thì tăng
 số này và tích <b>Lấy hết các trang</b>.</li>
 <li><b>Dừng từ khoá sau N trang liền không có đơn</b>: tiết kiệm lượt khi những trang sau không còn sản phẩm có đơn.</li>
@@ -160,7 +162,98 @@ khoảng 80 sản phẩm, nhưng chỉ khoảng 1/6 số đó là listing đăng
 </td></tr></table>
 
 <!-- ============================================================ -->
-<h2><a name="scan"></a>6. Quét và xác minh "I'm not a robot"</h2>
+<h2><a name="link"></a>6. Cào ra kết quả giống một link watchcount</h2>
+<p>Bạn đã lọc trên web watchcount.com và muốn tool cào đúng danh sách đó (để xuất Excel hoặc quét lại theo lịch)?
+Chỉ cần chép các điều kiện trong link sang <b>Cài đặt quét</b>. Mục này làm mẫu với link:</p>
+<table width="100%" cellspacing="0" cellpadding="10" class="tip"><tr><td>
+https://www.watchcount.com/<b>sold</b>/<b>Personalized+suncatcher</b>/-/<b>all</b><br>?<b>condition=new</b>&amp;<b>lastSoldDate=30days</b>&amp;offset=60&amp;<b>site=EBAY_US</b>&amp;<b>sortBy=bestmatch</b>
+</td></tr></table>
+
+<h3>Bước 1. Đọc link</h3>
+<p>Mỗi phần của link tương ứng với một ô trong tool:</p>
+<table width="100%" border="1" cellspacing="0" cellpadding="6" style="border-color:#d1d5db">
+<tr><th width="24%">Phần trong link</th><th width="30%">Chỉnh ở đâu trong tool</th><th>Chọn gì (link mẫu in đậm)</th></tr>
+<tr><td>/<b>sold</b>/ hoặc /live/</td><td>Cài đặt quét → <b>Tab tìm kiếm</b></td>
+<td>sold → <b>Search Sold</b>; live → Search Live</td></tr>
+<tr><td>/<b>Personalized+suncatcher</b>/</td><td>Trang <b>Từ khoá</b></td>
+<td>Dấu + là dấu cách: thêm từ khoá <b>Personalized suncatcher</b></td></tr>
+<tr><td>/<b>-</b>/ (danh mục)</td><td>Không cần chỉnh</td>
+<td>Dấu - là mọi danh mục. Tool chưa lọc được theo danh mục, nên nếu link có danh mục
+(vd /clothing-shoes-accessories_11450/) thì tool sẽ ra nhiều sản phẩm hơn web.</td></tr>
+<tr><td>/<b>all</b> (loại listing)</td><td><b>Loại listing</b></td>
+<td>all → <b>Tất cả</b>; fixedprice → Fixed-Price / BIN; auction → Đấu giá; bestoffer → Best Offer</td></tr>
+<tr><td><b>condition=new</b></td><td><b>Tình trạng (Condition)</b></td>
+<td>new → <b>New</b>; used → Used; link không có condition → Tất cả</td></tr>
+<tr><td><b>lastSoldDate=30days</b></td><td><b>Có đơn trong vòng (tab Sold)</b></td>
+<td>1day → 1 ngày … <b>30days → 30 ngày</b> … 60days → 60 ngày; link không có → Không giới hạn</td></tr>
+<tr><td><b>site=EBAY_US</b></td><td><b>eBay site</b></td><td><b>EBAY_US</b></td></tr>
+<tr><td><b>sortBy=bestmatch</b></td><td><b>Sắp xếp</b></td>
+<td>bestmatch → <b>Best Match</b>; sortBy=price&amp;sortOrder=asc → Giá thấp → cao; sortOrder=desc → Giá cao → thấp</td></tr>
+<tr><td>offset=60</td><td>Không cần chỉnh</td>
+<td>Chỉ là trang đang xem trên web (mỗi trang 20 sản phẩm, offset=60 là trang 4). Tool luôn quét từ trang 1,
+nên chỉ cần <b>Số trang tối đa</b> đủ lớn (bước 3).</td></tr>
+<tr><td>startTimeFrom=7days (tab Live)</td><td>Bộ lọc <b>Start</b></td><td>Start &lt;= 7</td></tr>
+</table>
+<p>Tool chưa hỗ trợ các phần khác như minPrice, seller, exactKeywordMatch, freeShippingOnly. Riêng maxPrice có thể thay
+bằng bộ lọc <b>Giá (USD) &lt;=</b>.</p>
+
+<h3>Bước 2. Thêm từ khoá</h3>
+<p>Vào <b>Từ khoá</b>, thêm <b>Personalized suncatcher</b>. Cài đặt quét dùng chung cho mọi từ khoá, nên muốn so riêng với link
+thì tạm bỏ tích cột <b>Bật</b> ở các từ khoá khác.</p>
+
+<h3>Bước 3. Chỉnh khung Tìm kiếm trên watchcount</h3>
+<ol>
+<li><b>Tab tìm kiếm</b>: Search Sold. <b>Có đơn trong vòng</b>: 30 ngày. <b>eBay site</b>: EBAY_US.</li>
+<li><b>Sắp xếp</b>: Best Match. <b>Loại listing</b>: Tất cả. <b>Tình trạng</b>: New.</li>
+<li><b>Số trang tối đa</b>: lấy số kết quả trên web chia 20 rồi làm tròn lên. Link mẫu có 165 kết quả nên cần 9 trang;
+đặt 10 cho dư.</li>
+<li>Tích <b>Lấy hết các trang</b>.</li>
+</ol>
+<div class="shot"><img src="link_search.png" width="780"></div>
+<p class="cap">Khung Tìm kiếm đã chỉnh giống link mẫu.</p>
+
+<h3>Bước 4. Để trống toàn bộ bộ lọc</h3>
+<p>Web watchcount không lọc theo Start, Bán gần nhất, Lượt theo dõi hay Giá, nên muốn ra giống web thì <b>xoá trống mọi ô</b>
+trong khung <b>Bộ lọc khi quét</b>.</p>
+<table width="100%" cellspacing="0" cellpadding="10" class="warn"><tr><td>
+<b>Đây là lý do hay gặp nhất khi tool ra ít hơn web.</b> Mặc định tool lọc <i>Start &lt;= 7</i> (chỉ lấy listing đăng
+trong 7 ngày). Với link mẫu, tool tải đủ 167 sản phẩm nhưng chỉ <b>1</b> sản phẩm đăng trong 7 ngày, nên trang Kết quả
+gần như trống. Muốn xem đủ mà vẫn giữ bộ lọc, bỏ tích <b>Chỉ SP đạt bộ lọc khi quét</b> ở trang Kết quả.
+</td></tr></table>
+<div class="shot"><img src="link_filters.png" width="780"></div>
+<p class="cap">Bộ lọc để trống hết. Ba ô bị làm mờ thì tab Sold không dùng nên không cần quan tâm.</p>
+
+<h3>Bước 5. Lưu và quét</h3>
+<p>Bấm <span class="key">Lưu cài đặt</span> ở cuối trang Cài đặt quét, rồi bấm <span class="key">▶ Quét ngay</span>.
+Gặp ô <b>I'm not a robot</b> thì làm theo <a href="#captcha">mục 7</a>.</p>
+
+<h3>Bước 6. Kiểm tra trong Nhật ký</h3>
+<div class="shot"><img src="link_log.png" width="780"></div>
+<p class="cap">Nhật ký khi quét link mẫu (ngày 05/10/2026).</p>
+<ul>
+<li>Dòng <b>link trang 1</b> là link tool đã mở. So với link của bạn: mọi phần giống nhau, chỉ khác là không có
+<i>offset</i> (vì đây là trang 1). Có thể copy link này dán vào trình duyệt để xem.</li>
+<li><b>tổng kết quả</b> phải gần bằng con số watchcount hiện trên web (165).</li>
+<li>Dòng <b>Kết thúc</b> cho biết số sản phẩm tool lấy được và số lượt đã dùng (9 trang = 9 lượt).</li>
+</ul>
+
+<h3>Bước 7. Xem kết quả</h3>
+<p>Vào <b>Kết quả</b>, chọn <b>Từ khoá</b> = Personalized suncatcher. Chọn sắp xếp <b>Bán gần đây nhất</b> để có thứ tự gần
+giống web (ở tab Sold, Best Match của watchcount xếp theo ngày bán gần nhất). Sản phẩm ở trang offset=60 trên web là
+khoảng thẻ thứ 61–80. Bấm <span class="key">Xuất Excel</span> để lấy file.</p>
+
+<table width="100%" cellspacing="0" cellpadding="10" class="tip"><tr><td>
+<b>Lưu ý</b>
+<ul>
+<li>Số sản phẩm có thể lệch vài cái so với web (link mẫu: web 165, tool 167). Watchcount cập nhật danh sách liên tục
+khi tool đang lật trang, nên có sản phẩm bị đẩy sang trang khác. Tool gộp sản phẩm trùng và giữ mọi sản phẩm đã thấy.</li>
+<li>Lịch quét tự động cũng dùng các cài đặt này. Muốn quay lại săn sản phẩm mới đăng thì đặt lại <i>Start &lt;= 7</i>.</li>
+<li>Mỗi trang tốn 1 lượt. Chưa đăng nhập chỉ có 20 lượt/ngày, tức chỉ khoảng 2 từ khoá cỡ link mẫu.</li>
+</ul>
+</td></tr></table>
+
+<!-- ============================================================ -->
+<h2><a name="scan"></a>7. Quét và xác minh "I'm not a robot"</h2>
 <p>Bấm <span class="key">▶ Quét ngay</span> ở góc trên bên phải. Thanh trên cùng hiện từ khoá đang quét và tiến độ.
 Bấm <span class="key">■ Dừng</span> để dừng giữa chừng, những gì đã quét vẫn được giữ.</p>
 <div class="shot"><img src="topbar_scanning.png" width="880"></div>
@@ -185,7 +278,7 @@ và hiện thông báo ở góc màn hình. Bạn làm như sau:</p>
 </td></tr></table>
 
 <!-- ============================================================ -->
-<h2><a name="results"></a>7. Xem kết quả và xuất Excel</h2>
+<h2><a name="results"></a>8. Xem kết quả và xuất Excel</h2>
 <p>Mục <b>Kết quả</b> hiện sản phẩm dạng thẻ. Thanh phía trên dùng để:</p>
 <ul>
 <li><b>Từ khoá</b>, <b>Lần quét</b>: xem riêng một từ khoá hoặc một lần quét.</li>
@@ -215,7 +308,7 @@ và hiện thông báo ở góc màn hình. Bạn làm như sau:</p>
 </td></tr></table>
 
 <!-- ============================================================ -->
-<h2><a name="schedule"></a>8. Lịch quét tự động</h2>
+<h2><a name="schedule"></a>9. Lịch quét tự động</h2>
 <ol>
 <li>Vào mục <b>Lịch quét</b>, chọn <b>Chế độ</b>:
 <ul>
@@ -235,13 +328,13 @@ Nếu máy tắt đúng giờ quét, app sẽ quét bù một lần khi mở l�
 <div class="shot"><img src="settings_general.png" width="780"></div>
 
 <!-- ============================================================ -->
-<h2><a name="log"></a>9. Nhật ký</h2>
+<h2><a name="log"></a>10. Nhật ký</h2>
 <p>Mục <b>Nhật ký</b> ghi tool đang làm gì (từ khoá nào, trang mấy, bao nhiêu sản phẩm đạt lọc) và danh sách các lần
 quét trước. Khi gặp lỗi, hãy xem ở đây trước.</p>
 <div class="shot"><img src="log.png" width="880"></div>
 
 <!-- ============================================================ -->
-<h2><a name="quota"></a>10. Lượt tìm kiếm của watchcount</h2>
+<h2><a name="quota"></a>11. Lượt tìm kiếm của watchcount</h2>
 <p>Mỗi trang kết quả (20 sản phẩm) tốn <b>1 lượt</b>. Tool tự chia đều số lượt còn lại cho các từ khoá và dừng khi hết lượt.</p>
 <table width="100%" border="1" cellspacing="0" cellpadding="6" style="border-color:#d1d5db">
 <tr><th>Loại tìm kiếm</th><th>Chưa đăng nhập</th><th>Tài khoản Free</th></tr>
@@ -252,9 +345,9 @@ quét trước. Khi gặp lỗi, hãy xem ở đây trước.</p>
 <p>Ví dụ: 10 từ khoá × 10 trang = tối đa 100 lượt mỗi lần quét.</p>
 
 <!-- ============================================================ -->
-<h2><a name="faq"></a>11. Câu hỏi thường gặp và xử lý lỗi</h2>
+<h2><a name="faq"></a>12. Câu hỏi thường gặp và xử lý lỗi</h2>
 <h3>Báo "Watchcount yêu cầu xác minh reCAPTCHA"</h3>
-<p>Làm theo <a href="#captcha">mục 6</a>. Đây không phải lỗi đăng nhập.</p>
+<p>Làm theo <a href="#captcha">mục 7</a>. Đây không phải lỗi đăng nhập.</p>
 <h3>Báo "Watchcount yêu cầu đăng nhập"</h3>
 <p>Chỉ gặp khi dùng Best Selling mà chưa đăng nhập, hoặc phiên đăng nhập đã hết hạn. Vào <a href="#login">Cài đặt quét →
 Đăng nhập watchcount</a>.</p>
@@ -268,6 +361,9 @@ quét trước. Khi gặp lỗi, hãy xem ở đây trước.</p>
 <li>Nới bộ lọc: vd Sell one &lt;= 14, Start &lt;= 30, hoặc để trống bớt ô.</li>
 <li>Tab Sold: tăng <b>Có đơn trong vòng</b> lên 14 hoặc 30 ngày.</li>
 </ul>
+<h3>Tool ra ít sản phẩm hơn trên web watchcount</h3>
+<p>Làm theo <a href="#link">mục 6</a>: chỉnh Tab, Có đơn trong vòng, Loại listing, Tình trạng giống link, tăng Số trang tối đa
+và để trống bộ lọc (nhất là ô Start).</p>
 <h3>Hết lượt giữa chừng</h3>
 <p>Giảm <b>Số trang tối đa / từ khoá</b>, bớt từ khoá, hoặc đăng nhập để có 200 lượt/ngày. Lượt được reset mỗi ngày.</p>
 <h3>Cập nhật phiên bản mới</h3>

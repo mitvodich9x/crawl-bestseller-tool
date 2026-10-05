@@ -17,6 +17,8 @@ DEFAULTS = {
         # tab Sold: chỉ lấy sản phẩm có đơn trong khoảng này ("" = không giới hạn)
         "last_sold_within": "7days",
         "site": "EBAY_US",
+        # tình trạng hàng: "" (tất cả) | new | used
+        "condition": "",
         # bestmatch/listdate -> standard quota, watchcount -> most-watched quota, bestselling -> monthly quota
         "sort_by": "bestmatch",
         "listing_type": "fixedprice",

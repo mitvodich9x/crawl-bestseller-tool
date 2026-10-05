@@ -51,6 +51,8 @@ LAST_SOLD_OPTIONS = {
     "": "Không giới hạn", "1day": "1 ngày", "2days": "2 ngày", "3days": "3 ngày", "7days": "7 ngày",
     "14days": "14 ngày", "30days": "30 ngày", "45days": "45 ngày", "60days": "60 ngày",
 }
+# bộ lọc "Condition" (tình trạng hàng) của watchcount, dùng cho cả hai tab
+CONDITIONS = {"": "Tất cả", "new": "New (hàng mới)", "used": "Used (hàng đã dùng)"}
 LISTING_TYPES = {"fixedprice": "Fixed-Price / BIN", "all": "Tất cả", "auction": "Đấu giá", "bestoffer": "Best Offer"}
 SITES = ["EBAY_US", "EBAY_GB", "EBAY_AU", "EBAY_CA", "EBAY_DE", "EBAY_FR", "EBAY_IT", "EBAY_ES"]
 
@@ -130,7 +132,8 @@ def valid_sort(status: str, sort_by: str) -> str:
 
 def build_search_url(keyword: str, site: str = "EBAY_US", sort_by: str = "bestmatch",
                      listing_type: str = "fixedprice", start_within: str | None = None, offset: int = 0,
-                     *, status: str = "live", last_sold_within: str | None = None) -> str:
+                     *, status: str = "live", last_sold_within: str | None = None,
+                     condition: str | None = None) -> str:
     status = status if status in STATUS_OPTIONS else "live"
     sort_params, _ = _SORT_PARAMS[valid_sort(status, sort_by)]
     params = {"site": site, **sort_params}
@@ -138,6 +141,8 @@ def build_search_url(keyword: str, site: str = "EBAY_US", sort_by: str = "bestma
         params["startTimeFrom"] = start_within
     if status == "sold" and last_sold_within:
         params["lastSoldDate"] = last_sold_within
+    if condition:
+        params["condition"] = condition
     if offset:
         params["offset"] = str(offset)
     query = "&".join(f"{k}={quote(str(v), safe='')}" for k, v in sorted(params.items()))

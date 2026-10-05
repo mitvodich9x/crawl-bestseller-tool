@@ -5,6 +5,7 @@ App chạy ẩn trên một thư mục data tạm với dữ liệu mẫu (tools
 database, phiên đăng nhập hay autostart thật. Ảnh sản phẩm tải từ eBay nên cần mạng.
 Ảnh trang xác minh reCAPTCHA chụp bằng Playwright với một profile trình duyệt mới.
 """
+import copy
 import json
 import sys
 import tempfile
@@ -112,6 +113,19 @@ def shoot_app() -> None:
     save(group(settings, "Bộ lọc"), "settings_filters.png")
     save(group(settings, "Chung"), "settings_general.png")
 
+    # 3b. Cài đặt khớp link mẫu ở mục "Cào giống một link watchcount" của trang Hướng dẫn
+    saved = copy.deepcopy(settings.cfg)
+    settings.cfg["search"].update(status="sold", last_sold_within="30days", site="EBAY_US", sort_by="bestmatch",
+                                  listing_type="all", condition="new", max_pages=10, stop_after_empty_pages=0)
+    for rule in settings.cfg["scan_filters"]:
+        rule["value"] = None
+    settings.load_from_config()
+    save(group(settings, "Tìm kiếm"), "link_search.png")
+    save(group(settings, "Bộ lọc"), "link_filters.png")
+    settings.cfg.clear()
+    settings.cfg.update(saved)
+    settings.load_from_config()
+
     # 4. Lịch quét
     win.nav.setCurrentRow(3)
     save(win, "schedule.png")
@@ -137,6 +151,25 @@ def shoot_app() -> None:
         win._log(line)
     win.nav.setCurrentRow(4)
     save(win, "log.png")
+
+    # 6b. Nhật ký của lần quét khớp link mẫu (số liệu thật, quét ngày 2026-10-05)
+    win.log_page.text.clear()
+    link = ("https://www.watchcount.com/sold/Personalized+suncatcher/-/all"
+            "?condition=new&lastSoldDate=30days&site=EBAY_US&sortBy=bestmatch")
+    for line in ["Bắt đầu quét (thủ công)", "Đang mở trình duyệt... (tab Sold)",
+                 "Lượt tìm kiếm còn lại (standard): 188",
+                 "[1/1] 'Personalized suncatcher' — tối đa 10 trang",
+                 f"   link trang 1: {link}",
+                 "   trang 1: 20 sản phẩm (20 mới), 20 đạt bộ lọc (tổng kết quả: 165)",
+                 "   trang 2: 20 sản phẩm (20 mới), 20 đạt bộ lọc (tổng kết quả: 165)",
+                 "   trang 3: 20 sản phẩm (20 mới), 20 đạt bộ lọc (tổng kết quả: 164)",
+                 "   trang 4: 20 sản phẩm (19 mới), 20 đạt bộ lọc (tổng kết quả: 164)",
+                 "   ...",
+                 "   trang 9: 11 sản phẩm (10 mới), 11 đạt bộ lọc (tổng kết quả: 165)",
+                 "Kết thúc (completed): 167 sản phẩm, 167 đạt bộ lọc, dùng 9 lượt"]:
+        win._log(line)
+    win.log_page.text.setFixedSize(1000, 235)
+    save(win.log_page.text, "link_log.png")
     win.tray.hide()
     win.close()
 

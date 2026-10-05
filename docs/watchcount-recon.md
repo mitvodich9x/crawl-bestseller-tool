@@ -141,3 +141,10 @@ ms-playwright\chromium_headless_shell-1228\chrome-headless-shell-win64\chrome-he
   khi quét tab Sold.
 - Con số watchcount hiện trên web với Last sold = 1 ngày: "glass suncatcher" 82, "Eileen Fisher" 378 (2026-09-30).
 - Mỗi lần mở trang, reCAPTCHA v3 chạy ngầm (`/recaptcha_verify`); profile đã qua xác minh thì không bị chặn.
+
+## Bộ lọc Condition (khảo sát 2026-10-05)
+- Tham số `condition`: `new` | `used`, bỏ trống là mọi tình trạng (ô chọn `.condition-input` trên web). Dùng được ở cả tab Sold và Live.
+- "Personalized suncatcher", `/sold/.../all`, `lastSoldDate=30days`: không condition 169, `condition=new` 165, `condition=used` 3.
+- Quét lại bằng tool với cùng điều kiện, bộ lọc để trống: 9 trang, 167 item không trùng (total dao động 164–165 khi lật
+  trang). Chỉ 1/167 item có Start ≤ 7 ngày, nên bộ lọc mặc định gần như loại hết.
+- Ở tab Sold, Best Match trả item theo `lastSoldDate` giảm dần.
