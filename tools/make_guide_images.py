@@ -162,7 +162,8 @@ def shoot_app() -> None:
                  "Lượt tìm kiếm còn lại (standard): 188",
                  "[1/4] 'halloween doormat' — tối đa 10 trang",
                  "   trang 1: 20 sản phẩm (20 mới), 6 đạt bộ lọc (tổng kết quả: 69)",
-                 "Kết thúc (completed): 69 sản phẩm, 14 đạt bộ lọc, dùng 4 lượt"):
+                 "Kết thúc (completed): 69 sản phẩm, 14 đạt bộ lọc, dùng 4 lượt",
+                 "   halloween doormat: 69 sản phẩm, 14 đạt bộ lọc"):
         win._log(line)
     win.nav.setCurrentRow(4)
     save(win, "log.png")
@@ -181,7 +182,8 @@ def shoot_app() -> None:
                  "   trang 4: 20 sản phẩm (19 mới), 20 đạt bộ lọc (tổng kết quả: 164)",
                  "   ...",
                  "   trang 9: 11 sản phẩm (10 mới), 11 đạt bộ lọc (tổng kết quả: 165)",
-                 "Kết thúc (completed): 167 sản phẩm, 167 đạt bộ lọc, dùng 9 lượt"]:
+                 "Kết thúc (completed): 167 sản phẩm, 167 đạt bộ lọc, dùng 9 lượt",
+                 "   Personalized suncatcher: 167 sản phẩm, 167 đạt bộ lọc"]:
         win._log(line)
     win.log_page.text.setFixedSize(1000, 235)
     save(win.log_page.text, "link_log.png")

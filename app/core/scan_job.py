@@ -32,6 +32,17 @@ class ScanSummary:
     pages_used: int = 0
     error: str | None = None
     per_keyword: dict = field(default_factory=dict)
+    skipped: list = field(default_factory=list)  # từ khoá chưa quét xong (hết lượt, bấm Dừng, lỗi...)
+
+
+# lý do các từ khoá còn lại không được quét, theo trạng thái kết thúc
+SKIP_REASONS = {
+    "quota_exhausted": "hết lượt tìm kiếm của watchcount",
+    "stopped": "đã bấm Dừng",
+    "blocked": "watchcount chặn / chưa qua reCAPTCHA",
+    "need_login": "cần đăng nhập watchcount",
+    "failed": "gặp lỗi",
+}
 
 
 def _max_start_age(rules: list[filters.FilterRule]) -> float | None:
@@ -204,8 +215,14 @@ def run_scan(db: Database, cfg: dict, keywords: list[str], trigger: str,
         db.finish_run(summary.run_id, summary.status, summary.total_found, summary.total_kept,
                       summary.pages_used, summary.error)
 
+    summary.skipped = [k for k in keywords if k not in summary.per_keyword]
     say(f"Kết thúc ({summary.status}): {summary.total_found} sản phẩm, {summary.total_kept} đạt bộ lọc, "
         f"dùng {summary.pages_used} lượt")
+    for keyword, counts in summary.per_keyword.items():
+        say(f"   {keyword}: {counts['found']} sản phẩm, {counts['kept']} đạt bộ lọc")
+    if summary.skipped:
+        say(f"   chưa quét xong {len(summary.skipped)} từ khoá ({SKIP_REASONS.get(summary.status, summary.status)}): "
+            + ", ".join(summary.skipped))
     return summary
 
 

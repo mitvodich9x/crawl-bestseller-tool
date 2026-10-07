@@ -23,7 +23,9 @@ Nội dung ở [app/assets/guide/guide.html](app/assets/guide/guide.html). Ảnh
    - *Sell one ≤ 7 / 3 / 1*: số ngày trung bình bán được 1 đơn, lấy từ trường "sold/day | week | month" của watchcount.
    - *Tổng đơn*, *lượt theo dõi*, *giá*: tuỳ chọn.
 4. **Lịch quét**: mỗi N ngày, ngày lẻ hoặc ngày chẵn, kèm giờ quét. App phải đang chạy; đóng cửa sổ thì app thu xuống khay hệ thống. Có thể bật *Khởi động cùng Windows*.
-5. **Kết quả**: lọc theo từ khoá, lần quét, bộ lọc nâng cao; sắp xếp; *Xuất Excel* với các cột Từ khoá | Tiêu đề | Hình ảnh | thông số.
+5. **Kết quả**: hai bảng — *Bảng 1 · Tất cả SP cào về* (gộp theo từ khoá, kèm dòng thống kê mỗi từ khoá cào về / đạt lọc
+   bao nhiêu) và *Bảng 2 · SP đạt bộ lọc*. Lọc theo từ khoá, lần quét, bộ lọc nâng cao; sắp xếp; *Xuất Excel* ra 2 sheet
+   (1. Cào về, 2. Đạt bộ lọc) với các cột Từ khoá | Tiêu đề | Hình ảnh | thông số; *Xoá kết quả* xoá phần đang xem.
 
 ## Hạn mức watchcount
 Mỗi trang kết quả (20 sản phẩm) tính là 1 lượt.

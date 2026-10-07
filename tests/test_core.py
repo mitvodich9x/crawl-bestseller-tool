@@ -197,6 +197,34 @@ def test_run_scan_reopens_visible_browser_on_challenge(tmp_path):
     assert alerts == [watchcount.CHALLENGE_MESSAGE]
 
 
+def test_run_scan_scans_every_keyword_after_challenge(tmp_path):
+    """Qua reCAPTCHA ở từ khoá đầu rồi thì các từ khoá sau vẫn được quét trong cửa sổ đang hiện."""
+
+    class HeadlessClient(FakeClient):
+        headless = True
+
+        def search(self, url, **kwargs):
+            raise watchcount.ChallengeError(watchcount.CHALLENGE_MESSAGE)
+
+    visible = FakeClient()
+    visible.headless = False
+    summary = run_scan(Database(tmp_path / "t.db"), _cfg(), ["funny shirt", "cat mug"], "manual", ScanCallbacks(),
+                       lambda headless=True: HeadlessClient() if headless else visible)
+    assert summary.status == "completed"
+    assert list(summary.per_keyword) == ["funny shirt", "cat mug"] and summary.skipped == []
+    assert [u.split("/sold/")[1].split("/")[0] for u in visible.urls] == ["funny+shirt"] * 2 + ["cat+mug"] * 2
+
+
+def test_run_scan_reports_keywords_skipped_when_quota_runs_out(tmp_path):
+    messages = []
+    summary = run_scan(Database(tmp_path / "t.db"), _cfg(), ["a", "b", "c"], "manual",
+                       ScanCallbacks(log=messages.append), lambda: FakeClient(quota=1))
+    assert summary.status == "quota_exhausted"
+    assert list(summary.per_keyword) == ["a"] and summary.skipped == ["b", "c"]
+    assert any("a: 2 sản phẩm, 1 đạt bộ lọc" in m for m in messages)
+    assert any("chưa quét xong 2 từ khoá (hết lượt tìm kiếm của watchcount): b, c" in m for m in messages)
+
+
 def test_run_scan_challenge_not_passed_is_blocked(tmp_path):
     class StuckClient(FakeClient):
         headless = False
@@ -399,3 +427,27 @@ def test_database_adds_new_columns_to_old_db(tmp_path):
     run_id = db.start_run("manual")
     db.save_products(run_id, "k", [parse_item({**RAW, "lastSoldFor": 9})], set())
     assert db.query_products(keyword="k")[0]["last_sold_price"] == 9.0
+
+
+def test_delete_results_by_keyword_by_run_and_all(tmp_path):
+    import sqlite3
+    db = Database(tmp_path / "t.db")
+    run_scan(db, _cfg(), ["a", "b"], "manual", ScanCallbacks(), lambda: FakeClient())
+    run_id = db.list_runs()[0]["id"]
+
+    # theo từ khoá: sản phẩm vẫn còn vì từ khoá b cũng tìm thấy chúng, lịch sử giữ nguyên
+    assert db.delete_results(keyword="a") == 3
+    assert db.query_products(keyword="a") == [] and len(db.query_products(keyword="b")) == 3
+    assert db.keywords_with_products() == ["b"] and len(db.list_runs()) == 1
+
+    # theo lần quét: bỏ luôn lần quét khỏi lịch sử và sản phẩm không còn từ khoá nào
+    assert db.delete_results(run_id=run_id) == 3
+    assert db.query_products() == [] and db.list_runs() == []
+    with sqlite3.connect(tmp_path / "t.db") as conn:
+        assert conn.execute("SELECT COUNT(*) FROM products").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM product_snapshots").fetchone()[0] == 0
+
+    # tất cả
+    run_scan(db, _cfg(), ["a"], "manual", ScanCallbacks(), lambda: FakeClient())
+    assert db.delete_results() == 3
+    assert db.query_products() == [] and db.list_runs() == [] and db.keywords_with_products() == []

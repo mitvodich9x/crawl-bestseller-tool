@@ -199,3 +199,30 @@ class Database:
     def keywords_with_products(self) -> list[str]:
         with closing(self._connect()) as conn:
             return [r[0] for r in conn.execute("SELECT DISTINCT keyword FROM product_keywords ORDER BY keyword")]
+
+    def delete_results(self, keyword: str | None = None, run_id: int | None = None) -> int:
+        """Xoá kết quả đã cào của một từ khoá, một lần quét, cả hai, hoặc tất cả (không truyền gì).
+
+        Danh sách từ khoá giữ nguyên. Xoá theo lần quét (không kèm từ khoá) thì lần quét đó cũng rời khỏi lịch sử.
+        Trả về số dòng kết quả (sản phẩm × từ khoá) đã xoá.
+        """
+        where, params = [], []
+        if keyword:
+            where.append("keyword = ?")
+            params.append(keyword)
+        if run_id:
+            where.append("last_run_id = ?")
+            params.append(run_id)
+        clause = (" WHERE " + " AND ".join(where)) if where else ""
+        with closing(self._connect()) as conn, conn:
+            removed = conn.execute("DELETE FROM product_keywords" + clause, params).rowcount
+            if not where:
+                conn.execute("DELETE FROM scan_runs")
+                conn.execute("DELETE FROM product_snapshots")
+            elif run_id and not keyword:
+                conn.execute("DELETE FROM scan_runs WHERE id = ?", (run_id,))
+                conn.execute("DELETE FROM product_snapshots WHERE run_id = ?", (run_id,))
+            # sản phẩm không còn gắn với từ khoá nào thì bỏ luôn cùng lịch sử số liệu của nó
+            conn.execute("DELETE FROM products WHERE item_id NOT IN (SELECT item_id FROM product_keywords)")
+            conn.execute("DELETE FROM product_snapshots WHERE item_id NOT IN (SELECT item_id FROM products)")
+        return removed

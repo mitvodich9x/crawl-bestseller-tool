@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QMa
 from app import autostart, config, update_service
 from app.app_version import APP_NAME, APP_VERSION
 from app.core import filters, scheduler
+from app.core.scan_job import SKIP_REASONS
 from app.db.database import Database
 from app.ui.pages.guide_page import GuidePage
 from app.ui.pages.keywords_page import KeywordsPage
@@ -72,7 +73,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self.results_page = ResultsPage(db, lambda: filters.rules_for_status(self.cfg["scan_filters"],
-                                                                             self.cfg["search"].get("status")))
+                                                                             self.cfg["search"].get("status")),
+                                        is_busy=self._browser_busy)
         self.keywords_page = KeywordsPage(db)
         self.settings_page = SettingsPage(cfg)
         self.schedule_page = SchedulePage(cfg)
@@ -91,6 +93,7 @@ class MainWindow(QMainWindow):
         # lần đầu dùng (chưa có từ khoá nào) thì mở sẵn trang Hướng dẫn
         self.nav.setCurrentRow(0 if db.list_keywords() else self.nav.count() - 1)
 
+        self.results_page.results_changed.connect(self.log_page.reload_runs)  # xoá kết quả cũng xoá lần quét
         self.settings_page.save_requested.connect(self._save_settings)
         self.settings_page.link_applied.connect(self._on_link_applied)
         self.settings_page.login_requested.connect(lambda: self._run_account("login"))
@@ -393,6 +396,8 @@ class MainWindow(QMainWindow):
         else:
             message = (f"Xong: {summary.total_kept} sản phẩm đạt bộ lọc / {summary.total_found} tìm thấy, "
                        f"dùng {summary.pages_used} lượt")
+            if summary.skipped:
+                message += f". Chưa quét xong {len(summary.skipped)} từ khoá: {self._skipped_text(summary)}"
             if summary.error:
                 message += f" — {summary.error}"
             self.status_label.setText(message)
@@ -400,6 +405,18 @@ class MainWindow(QMainWindow):
         self.log_page.reload_runs()
         if not self.isVisible():
             self.tray.showMessage(APP_NAME, message, QSystemTrayIcon.MessageIcon.Information, 8000)
+        elif summary is not None and summary.skipped and summary.status != "stopped":
+            # để người dùng không tưởng tool chỉ quét từ khoá đầu
+            scanned = ", ".join(summary.per_keyword) or "(chưa từ khoá nào)"
+            QMessageBox.warning(
+                self, "Chưa quét hết từ khoá",
+                f"Đã quét: {scanned}.\n\nChưa quét xong {len(summary.skipped)} từ khoá: "
+                f"{self._skipped_text(summary)}\n\nXem chi tiết ở trang Nhật ký.")
+
+    @staticmethod
+    def _skipped_text(summary) -> str:
+        names = ", ".join(summary.skipped[:5]) + (", ..." if len(summary.skipped) > 5 else "")
+        return f"{names} ({SKIP_REASONS.get(summary.status, summary.status)})"
 
     def _check_schedule(self) -> None:
         now = datetime.now()

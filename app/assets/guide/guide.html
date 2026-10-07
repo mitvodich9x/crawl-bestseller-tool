@@ -253,7 +253,7 @@ quét từ trang 1.</p>
 <b>Bộ lọc khi quét là lý do hay gặp nhất khi tool ra ít hơn web.</b> Web watchcount không lọc theo Start, Bán gần nhất,
 Lượt theo dõi hay Giá (USD) của tool. Mặc định tool lọc <i>Start &lt;= 7</i> (chỉ lấy listing đăng trong 7 ngày): với link
 mẫu, tool tải đủ 167 sản phẩm nhưng chỉ <b>1</b> sản phẩm đăng trong 7 ngày, nên trang Kết quả gần như trống. Muốn xem đủ
-mà vẫn giữ bộ lọc, bỏ tích <b>Chỉ SP đạt bộ lọc khi quét</b> ở trang Kết quả.
+mà vẫn giữ bộ lọc, mở <b>Bảng 1 · Tất cả SP cào về</b> ở trang Kết quả.
 </td></tr></table>
 <div class="shot"><img src="link_filters.png" width="780"></div>
 <p class="cap">Bộ lọc để trống hết. Ba ô bị làm mờ thì tab Sold không dùng nên không cần quan tâm.</p>
@@ -315,14 +315,23 @@ và hiện thông báo ở góc màn hình. Bạn làm như sau:</p>
 
 <!-- ============================================================ -->
 <h2><a name="results"></a>8. Xem kết quả và xuất Excel</h2>
-<p>Mục <b>Kết quả</b> hiện sản phẩm dạng thẻ. Thanh phía trên dùng để:</p>
+<p>Mục <b>Kết quả</b> hiện sản phẩm dạng thẻ, chia làm hai bảng:</p>
 <ul>
-<li><b>Từ khoá</b>, <b>Lần quét</b>: xem riêng một từ khoá hoặc một lần quét.</li>
+<li><b>Bảng 1 · Tất cả SP cào về</b>: mọi sản phẩm tool tải về từ watchcount, gộp theo từ khoá (sản phẩm được nhiều
+từ khoá tìm thấy chỉ hiện một thẻ, ghi đủ các từ khoá). Dùng bảng này để kiểm tra tool đã cào đủ các từ khoá chưa.</li>
+<li><b>Bảng 2 · SP đạt bộ lọc</b>: chỉ những sản phẩm đạt <a href="#filters">Bộ lọc khi quét</a>.</li>
+</ul>
+<p>Dòng <i>Theo từ khoá</i> ngay trên hai bảng ghi mỗi từ khoá cào về bao nhiêu sản phẩm và bao nhiêu đạt lọc.
+Thanh phía trên dùng để:</p>
+<ul>
+<li><b>Từ khoá</b>, <b>Lần quét</b>: xem riêng một từ khoá hoặc một lần quét (áp dụng cho cả hai bảng).</li>
 <li><b>Sắp xếp</b>: tổng đơn cao nhất, bán nhanh nhất, bán gần đây nhất, mới đăng nhất...</li>
-<li><b>Chỉ SP đạt bộ lọc khi quét</b>: bỏ tích để xem tất cả sản phẩm đã lưu.</li>
 <li><b>Tìm trong tiêu đề</b>: gõ chữ để lọc nhanh theo tiêu đề.</li>
-<li><b>Bộ lọc nâng cao</b>: lọc thêm ngay trên màn hình mà không cần quét lại.</li>
-<li><span class="key">Xuất Excel</span>: xuất đúng danh sách đang hiện ra file .xlsx (Từ khoá | Tiêu đề | Hình ảnh | các chỉ số).</li>
+<li><b>Bộ lọc nâng cao</b>: lọc thêm ngay trên màn hình mà không cần quét lại (áp dụng cho cả hai bảng).</li>
+<li><span class="key">Xuất Excel</span>: file .xlsx có 2 sheet, <i>1. Cào về</i> và <i>2. Đạt bộ lọc</i>, đúng như hai
+bảng đang hiện (Từ khoá | Tiêu đề | Hình ảnh | các chỉ số).</li>
+<li><b>🗑 Xoá kết quả</b>: xoá kết quả đang xem. Đang chọn <i>Tất cả</i> thì xoá toàn bộ kết quả đã cào; đang chọn một
+từ khoá hoặc một lần quét thì chỉ xoá phần đó. Danh sách từ khoá và cài đặt quét giữ nguyên.</li>
 </ul>
 <div class="shot"><img src="results.png" width="880"></div>
 <p class="cap">Trang Kết quả với các sản phẩm tìm được từ tab Sold.</p>
@@ -392,10 +401,19 @@ quét trước. Khi gặp lỗi, hãy xem ở đây trước.</p>
 <i>%LOCALAPPDATA%\ms-playwright</i>.</p>
 <h3>Quét xong mà không có sản phẩm nào đạt lọc</h3>
 <ul>
-<li>Bỏ tích <b>Chỉ SP đạt bộ lọc khi quét</b> ở trang Kết quả để xem toàn bộ sản phẩm đã lưu.</li>
+<li>Mở <b>Bảng 1 · Tất cả SP cào về</b> ở trang Kết quả để xem toàn bộ sản phẩm đã lưu; dòng <i>Theo từ khoá</i>
+cho biết từ khoá nào cào về bao nhiêu.</li>
 <li>Xem trang <b>Log</b>: dưới mỗi trang có dòng <i>bị loại vì: …</i> cho biết điều kiện nào loại bao nhiêu sản phẩm.</li>
 <li>Nới bộ lọc: vd Sell one &lt;= 14, Start &lt;= 30, hoặc để trống bớt ô.</li>
 <li>Tab Sold: tăng <b>Có đơn trong vòng</b> lên 14 hoặc 30 ngày.</li>
+</ul>
+<h3>Có nhiều từ khoá nhưng Kết quả chỉ thấy sản phẩm của từ khoá đầu</h3>
+<ul>
+<li>Mở <b>Bảng 1 · Tất cả SP cào về</b>. Bảng 2 chỉ hiện sản phẩm đạt Bộ lọc khi quét, nên từ khoá không có sản phẩm nào
+đạt lọc sẽ không xuất hiện ở Bảng 2 dù tool đã cào. Dòng <i>Theo từ khoá</i> ghi rõ mỗi từ khoá cào về bao nhiêu.</li>
+<li>Xem <b>Nhật ký</b>: cuối mỗi lần quét có dòng tổng kết từng từ khoá. Nếu có dòng <i>chưa quét xong N từ khoá (hết
+lượt tìm kiếm của watchcount)</i> thì lượt trong ngày đã hết, các từ khoá còn lại sẽ quét ở lần sau; tool cũng hiện hộp
+báo ngay khi quét xong.</li>
 </ul>
 <h3>Tool ra ít sản phẩm hơn trên web watchcount</h3>
 <p>Làm theo <a href="#link">mục 6</a>: dán link watchcount vào Cài đặt quét (Áp dụng link), giữ tích Xoá trống Bộ lọc,

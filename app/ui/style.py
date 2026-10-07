@@ -36,6 +36,11 @@ QLabel:disabled { color: #9aa5b4; }
 #statValue { font-weight: 600; }
 #cardButton { padding: 4px 6px; font-size: 11px; }
 #emptyLabel { color: #6b7280; font-size: 15px; padding: 40px; }
+QTabWidget::pane { border: 1px solid #e3e7ee; border-radius: 8px; background: transparent; top: -1px; }
+QTabBar::tab { background: #e9edf3; color: #1f2937; padding: 8px 18px; margin-right: 2px; font-weight: 600;
+    border: 1px solid #e3e7ee; border-bottom: none; border-top-left-radius: 6px; border-top-right-radius: 6px; }
+QTabBar::tab:selected { background: white; color: #1d4ed8; }
+QTabBar::tab:hover:!selected { background: #eef3f9; }
 QScrollArea { border: none; background: transparent; }
 QScrollArea > QWidget > QWidget { background: transparent; }
 """

@@ -1,4 +1,7 @@
-"""Export product rows to .xlsx: keyword, title, image first, then the other metrics."""
+"""Export product rows to .xlsx: keyword, title, image first, then the other metrics.
+
+Trang Kết quả xuất hai sheet: "1. Cào về" (mọi sản phẩm đang hiện ở Bảng 1) và "2. Đạt bộ lọc" (Bảng 2).
+"""
 from datetime import datetime
 from pathlib import Path
 
@@ -33,14 +36,24 @@ def _age(product: dict):
     return None if value is None else round(value, 1)
 
 
-def export_products(products: list[dict], path: str | Path) -> Path:
+def export_tables(tables: list[tuple[str, list[dict]]], path: str | Path) -> Path:
+    """Mỗi phần tử (tên sheet, danh sách sản phẩm) thành một sheet cùng bố cục cột."""
     path = Path(path)
     workbook = xlsxwriter.Workbook(str(path), {"strings_to_urls": False})
-    sheet = workbook.add_worksheet("Bestseller")
     header = workbook.add_format({"bold": True, "bg_color": "#1F3A5F", "font_color": "#FFFFFF", "border": 1,
                                   "valign": "vcenter"})
     wrap = workbook.add_format({"text_wrap": True, "valign": "top"})
+    for name, products in tables:
+        _write_sheet(workbook.add_worksheet(name[:31]), products, header, wrap)  # Excel giới hạn tên sheet 31 ký tự
+    workbook.close()
+    return path
 
+
+def export_products(products: list[dict], path: str | Path, sheet_name: str = "Bestseller") -> Path:
+    return export_tables([(sheet_name, products)], path)
+
+
+def _write_sheet(sheet, products: list[dict], header, wrap) -> None:
     for col, (title, width, _) in enumerate(COLUMNS):
         sheet.write(0, col, title, header)
         sheet.set_column(col, col, width)
@@ -59,5 +72,3 @@ def export_products(products: list[dict], path: str | Path) -> Path:
     sheet.freeze_panes(1, 0)
     sheet.autofilter(0, 0, max(1, len(products)), len(COLUMNS) - 1)
     sheet.write(len(products) + 2, 0, f"Xuất lúc {datetime.now():%Y-%m-%d %H:%M}")
-    workbook.close()
-    return path
