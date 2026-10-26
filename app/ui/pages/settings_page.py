@@ -179,6 +179,23 @@ class SettingsPage(QWidget):
         filter_layout.addWidget(self.filter_hint)
         root.addWidget(filter_box)
 
+        # Lumi
+        lumi_box = QGroupBox("Lumi (đẩy SP trend lên web)")
+        lumi_form = QFormLayout(lumi_box)
+        self.lumi_url = QLineEdit()
+        self.lumi_url.setPlaceholderText("https://app.lumihubs.com")
+        self.lumi_token = QLineEdit()
+        self.lumi_token.setEchoMode(QLineEdit.EchoMode.Password)
+        self.lumi_token.setPlaceholderText("Dán Token API quyền Tool Scanner")
+        lumi_hint = QLabel("Tạo token ở Lumi: Hệ thống → Token API, quyền \"Tool Scanner\", gắn với tài khoản admin hoặc "
+                           "quản lý kênh. SP đẩy lên nằm ở Lumi → Listing → SP trend eBay.")
+        lumi_hint.setObjectName("hint")
+        lumi_hint.setWordWrap(True)
+        lumi_form.addRow("Địa chỉ Lumi", self.lumi_url)
+        lumi_form.addRow("Token", self.lumi_token)
+        lumi_form.addRow(lumi_hint)
+        root.addWidget(lumi_box)
+
         # general
         general = QGroupBox("Chung")
         gen_layout = QVBoxLayout(general)
@@ -336,6 +353,8 @@ class SettingsPage(QWidget):
         self.reserve.setValue(int(s["reserve_quota"]))
         self.headless.setChecked(bool(s["headless"]))
         self.filter_editor.set_rules(self.cfg["scan_filters"])
+        self.lumi_url.setText(self.cfg["lumi"].get("url") or "")
+        self.lumi_token.setText(self.cfg["lumi"].get("token") or "")
         self.tray.setChecked(bool(self.cfg["general"]["minimize_to_tray"]))
         self.autostart.setChecked(bool(self.cfg["general"]["autostart"]))
 
@@ -363,6 +382,8 @@ class SettingsPage(QWidget):
         s["reserve_quota"] = self.reserve.value()
         s["headless"] = self.headless.isChecked()
         self.cfg["scan_filters"] = self.filter_editor.rule_dicts()
+        self.cfg["lumi"]["url"] = self.lumi_url.text().strip()
+        self.cfg["lumi"]["token"] = self.lumi_token.text().strip()
         self.cfg["general"]["minimize_to_tray"] = self.tray.isChecked()
         self.cfg["general"]["autostart"] = self.autostart.isChecked()
 

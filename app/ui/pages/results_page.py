@@ -16,6 +16,7 @@ from app.ui.widgets.filter_editor import FilterEditor
 from app.ui.widgets.flow_layout import FlowLayout
 from app.ui.widgets.image_loader import ImageLoader
 from app.ui.widgets.product_card import ProductCard
+from app.ui.workers import PushWorker
 
 PAGE_SIZE = 60
 SUMMARY_MAX_KEYWORDS = 12
@@ -45,9 +46,12 @@ class ProductGrid(QWidget):
     Chỉ dựng thẻ khi bảng đang hiện; bảng ở tab còn lại dựng lúc được mở, nên đổi bộ lọc không tốn gấp đôi.
     """
 
-    def __init__(self, loader: ImageLoader, parent=None):
+    selected_changed = pyqtSignal(str, bool)
+
+    def __init__(self, loader: ImageLoader, selection: set[str], pushed: set[str], parent=None):
         super().__init__(parent)
         self.loader = loader
+        self.selection, self.pushed = selection, pushed  # dùng chung với trang Kết quả
         self._items: list[dict] = []
         self._page = 0
         self._empty_text = EMPTY_DB
@@ -111,7 +115,9 @@ class ProductGrid(QWidget):
         self._cards_by_url.clear()
         start = self._page * PAGE_SIZE
         for product in self._items[start:start + PAGE_SIZE]:
-            card = ProductCard(product)
+            item_id = product["item_id"]
+            card = ProductCard(product, selected=item_id in self.selection, pushed=item_id in self.pushed)
+            card.selected_changed.connect(self.selected_changed)
             self.grid.addWidget(card)
             url = product.get("image_url")
             if url:
@@ -127,6 +133,15 @@ class ProductGrid(QWidget):
             self.grid.addWidget(empty)
         self.scroll.verticalScrollBar().setValue(0)
 
+    def refresh_cards(self) -> None:
+        """Dựng lại trang đang xem (sau khi chọn tất cả / bỏ chọn / đẩy xong), giữ vị trí cuộn."""
+        if not self.isVisible():
+            self._dirty = True
+            return
+        pos = self.scroll.verticalScrollBar().value()
+        self._render()
+        self.scroll.verticalScrollBar().setValue(pos)
+
     def _on_image(self, url: str, pixmap: QPixmap) -> None:
         for card in self._cards_by_url.get(url, []):
             card.set_pixmap(pixmap)
@@ -135,9 +150,13 @@ class ProductGrid(QWidget):
 class ResultsPage(QWidget):
     results_changed = pyqtSignal()  # đã xoá kết quả: lịch sử lần quét ở trang Nhật ký cần nạp lại
 
-    def __init__(self, db: Database, get_scan_rules, is_busy=lambda: False, parent=None):
+    def __init__(self, db: Database, get_scan_rules, is_busy=lambda: False, get_lumi=lambda: {}, parent=None):
         super().__init__(parent)
         self.db = db
+        self.get_lumi = get_lumi  # {"url", "token"} trong Cài đặt quét
+        self._selection: set[str] = set()  # item_id đã tích để đẩy lên Lumi, giữ qua các trang / bảng
+        self._pushed: set[str] = db.pushed_ids()
+        self._push_worker = None
         self.get_scan_rules = get_scan_rules
         self.is_busy = is_busy  # đang quét thì không cho xoá kết quả
         self._rows: list[dict] = []  # dòng (sản phẩm × từ khoá) theo lựa chọn Từ khoá / Lần quét
@@ -200,9 +219,21 @@ class ResultsPage(QWidget):
         self.summary_label.setTextFormat(Qt.TextFormat.RichText)
         root.addWidget(self.summary_label)
 
+        push_bar = QHBoxLayout()
+        self.select_all_btn = QPushButton("☑ Chọn tất cả bảng đang xem")
+        self.clear_sel_btn = QPushButton("Bỏ chọn")
+        self.push_btn = QPushButton()
+        self.push_btn.setObjectName("primaryButton")
+        self.push_btn.setToolTip("Đẩy các sản phẩm đã tích lên Lumi → SP trend eBay (cấu hình ở Cài đặt quét → Lumi)")
+        push_bar.addWidget(self.select_all_btn)
+        push_bar.addWidget(self.clear_sel_btn)
+        push_bar.addStretch(1)
+        push_bar.addWidget(self.push_btn)
+        root.addLayout(push_bar)
+
         self.tabs = QTabWidget()
-        self.grid_all = ProductGrid(self.loader)
-        self.grid_kept = ProductGrid(self.loader)
+        self.grid_all = ProductGrid(self.loader, self._selection, self._pushed)
+        self.grid_kept = ProductGrid(self.loader, self._selection, self._pushed)
         self.tabs.addTab(self.grid_all, TAB_ALL)
         self.tabs.addTab(self.grid_kept, TAB_KEPT)
         self.tabs.setTabToolTip(0, "Mọi sản phẩm tool tải về từ watchcount cho các từ khoá, chưa qua Bộ lọc khi quét")
@@ -222,6 +253,12 @@ class ResultsPage(QWidget):
         refresh_btn.clicked.connect(self.refresh)
         self.delete_btn.clicked.connect(self._delete)
         export_btn.clicked.connect(self._export)
+        for grid in (self.grid_all, self.grid_kept):
+            grid.selected_changed.connect(self._on_selected)
+        self.select_all_btn.clicked.connect(self._select_all)
+        self.clear_sel_btn.clicked.connect(self._clear_selection)
+        self.push_btn.clicked.connect(self._push)
+        self._update_push_btn()
 
         self.filter_editor.set_rules([])
         self.refresh()
@@ -292,6 +329,68 @@ class ResultsPage(QWidget):
         self.tabs.setTabText(1, f"{TAB_KEPT} ({len(kept)})")
         self.grid_all.set_items(shown, empty_all)
         self.grid_kept.set_items(kept, empty_kept)
+
+    # ---- đẩy SP trend lên Lumi -------------------------------------------------------------
+
+    def _current_grid(self) -> ProductGrid:
+        return self.grid_kept if self.tabs.currentWidget() is self.grid_kept else self.grid_all
+
+    def _update_push_btn(self) -> None:
+        busy = self._push_worker is not None
+        self.push_btn.setText("Đang đẩy..." if busy else f"⬆ Đẩy lên Lumi ({len(self._selection)})")
+        self.push_btn.setEnabled(bool(self._selection) and not busy)
+        self.clear_sel_btn.setEnabled(bool(self._selection) and not busy)
+
+    def _on_selected(self, item_id: str, on: bool) -> None:
+        if on:
+            self._selection.add(item_id)
+        else:
+            self._selection.discard(item_id)
+        self._update_push_btn()
+
+    def _select_all(self) -> None:
+        self._selection.update(p["item_id"] for p in self._current_grid().items)
+        self._current_grid().refresh_cards()
+        self._update_push_btn()
+
+    def _clear_selection(self) -> None:
+        self._selection.clear()
+        self._current_grid().refresh_cards()
+        self._update_push_btn()
+
+    def _push(self) -> None:
+        by_id = {p["item_id"]: p for p in self._all}
+        products = [by_id[i] for i in self._selection if i in by_id]
+        if not products:
+            QMessageBox.information(self, "Đẩy lên Lumi", "Các sản phẩm đã chọn không còn trong kết quả đang xem.")
+            return
+        lumi = self.get_lumi()
+        if not (lumi.get("token") or "").strip():
+            QMessageBox.information(self, "Đẩy lên Lumi",
+                                    "Chưa có Token Lumi. Vào Cài đặt quét → Lumi, dán token rồi bấm Lưu cài đặt.")
+            return
+        self._push_worker = PushWorker(lumi.get("url") or "", lumi["token"], products)
+        self._push_worker.done.connect(lambda result, error: self._on_pushed(products, result, error))
+        self._update_push_btn()
+        self._push_worker.start()
+
+    def _on_pushed(self, products: list[dict], result: dict | None, error: str) -> None:
+        self._push_worker = None
+        if error:
+            self._update_push_btn()
+            QMessageBox.warning(self, "Đẩy lên Lumi", f"Không đẩy được:\n{error}")
+            return
+        ids = [p["item_id"] for p in products]
+        self.db.mark_pushed(ids)
+        self._pushed.update(ids)
+        self._selection.difference_update(ids)
+        self._update_push_btn()
+        for grid in (self.grid_all, self.grid_kept):
+            grid.refresh_cards()
+        QMessageBox.information(
+            self, "Đẩy lên Lumi",
+            f"Đã đẩy {len(ids)} sản phẩm lên Lumi: {result['created']} mới, {result['updated']} cập nhật.\n"
+            "Xem ở Lumi → Listing → SP trend eBay.")
 
     # ---- actions --------------------------------------------------------------------------
 

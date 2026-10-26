@@ -3,7 +3,7 @@ import logging
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from app import browser_setup, update_service
+from app import browser_setup, lumi_api, update_service
 from app.errors import friendly_error
 from app.core.scan_job import ScanCallbacks, run_scan
 from app.db.database import Database
@@ -127,3 +127,21 @@ class AccountWorker(QThread):
             if client:
                 client.close()
         self.done.emit(result)
+
+
+class PushWorker(QThread):
+    """Đẩy SP trend lên Lumi (mạng chậm không làm đơ giao diện)."""
+    done = pyqtSignal(object, str)  # ({"created", "updated"} | None, lỗi)
+
+    def __init__(self, base_url: str, token: str, products: list[dict]):
+        super().__init__()
+        self.base_url, self.token, self.products = base_url, token, products
+
+    def run(self) -> None:
+        try:
+            self.done.emit(lumi_api.push_trends(self.base_url, self.token, self.products), "")
+        except lumi_api.LumiError as exc:
+            self.done.emit(None, str(exc))
+        except Exception as exc:  # noqa: BLE001 - báo lỗi lên giao diện thay vì làm sập thread
+            log.exception("Push to Lumi failed")
+            self.done.emit(None, friendly_error(exc))

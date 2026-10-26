@@ -32,6 +32,7 @@ QLabel:disabled { color: #9aa5b4; }
 #cardImage { background: #f3f5f9; border-radius: 6px; color: #9aa5b4; }
 #cardTitle { font-weight: 600; }
 #keywordChip { color: #1d4ed8; background: #e8effd; border-radius: 4px; padding: 2px 6px; font-size: 11px; }
+#pushedChip { color: #047857; background: #e7f6ee; border-radius: 4px; padding: 2px 6px; font-size: 11px; }
 #statLabel { color: #6b7280; font-size: 11px; }
 #statValue { font-weight: 600; }
 #cardButton { padding: 4px 6px; font-size: 11px; }

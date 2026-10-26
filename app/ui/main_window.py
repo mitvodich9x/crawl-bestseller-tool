@@ -74,7 +74,7 @@ class MainWindow(QMainWindow):
 
         self.results_page = ResultsPage(db, lambda: filters.rules_for_status(self.cfg["scan_filters"],
                                                                              self.cfg["search"].get("status")),
-                                        is_busy=self._browser_busy)
+                                        is_busy=self._browser_busy, get_lumi=lambda: self.cfg["lumi"])
         self.keywords_page = KeywordsPage(db)
         self.settings_page = SettingsPage(cfg)
         self.schedule_page = SchedulePage(cfg)

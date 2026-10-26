@@ -64,6 +64,11 @@ CREATE TABLE IF NOT EXISTS product_snapshots (
     watchers INTEGER,
     captured_at TEXT NOT NULL
 );
+-- sản phẩm đã đẩy lên Lumi (SP trend)
+CREATE TABLE IF NOT EXISTS pushed_items (
+    item_id TEXT PRIMARY KEY,
+    pushed_at TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_pk_keyword ON product_keywords(keyword);
 CREATE INDEX IF NOT EXISTS idx_pk_run ON product_keywords(last_run_id);
 CREATE INDEX IF NOT EXISTS idx_snap_item ON product_snapshots(item_id);
@@ -195,6 +200,19 @@ class Database:
         sql += " ORDER BY p.total_sold DESC, p.sold_per_day DESC"
         with closing(self._connect()) as conn:
             return [dict(r) for r in conn.execute(sql, params)]
+
+    def mark_pushed(self, item_ids: list[str]) -> None:
+        now = _now()
+        with closing(self._connect()) as conn, conn:
+            conn.executemany(
+                "INSERT INTO pushed_items(item_id, pushed_at) VALUES (?, ?) "
+                "ON CONFLICT(item_id) DO UPDATE SET pushed_at=excluded.pushed_at",
+                [(i, now) for i in item_ids],
+            )
+
+    def pushed_ids(self) -> set[str]:
+        with closing(self._connect()) as conn:
+            return {r[0] for r in conn.execute("SELECT item_id FROM pushed_items")}
 
     def keywords_with_products(self) -> list[str]:
         with closing(self._connect()) as conn:

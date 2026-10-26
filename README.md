@@ -26,6 +26,9 @@ Nội dung ở [app/assets/guide/guide.html](app/assets/guide/guide.html). Ảnh
 5. **Kết quả**: hai bảng — *Bảng 1 · Tất cả SP cào về* (gộp theo từ khoá, kèm dòng thống kê mỗi từ khoá cào về / đạt lọc
    bao nhiêu) và *Bảng 2 · SP đạt bộ lọc*. Lọc theo từ khoá, lần quét, bộ lọc nâng cao; sắp xếp; *Xuất Excel* ra 2 sheet
    (1. Cào về, 2. Đạt bộ lọc) với các cột Từ khoá | Tiêu đề | Hình ảnh | thông số; *Xoá kết quả* xoá phần đang xem.
+6. **Đẩy SP trend lên Lumi**: ở trang Kết quả tích ô *Chọn* trên card (hoặc *Chọn tất cả bảng đang xem*) rồi bấm
+   *⬆ Đẩy lên Lumi*. Cần nhập địa chỉ Lumi + Token API (quyền "Tool Scanner", tạo ở Lumi → Hệ thống → Token API) trong
+   *Cài đặt quét → Lumi*. SP hiện ở Lumi → Listing → SP trend eBay; đẩy lại chỉ cập nhật số liệu, không tạo trùng.
 
 ## Hạn mức watchcount
 Mỗi trang kết quả (20 sản phẩm) tính là 1 lượt.

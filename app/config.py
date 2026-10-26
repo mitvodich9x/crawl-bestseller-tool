@@ -57,6 +57,11 @@ DEFAULTS = {
     "state": {
         "last_run_date": None,
     },
+    # đẩy SP trend lên web Lumi (lumi-node)
+    "lumi": {
+        "url": "https://app.lumihubs.com",
+        "token": "",
+    },
     "general": {
         "minimize_to_tray": True,
         "autostart": False,

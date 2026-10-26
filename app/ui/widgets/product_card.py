@@ -1,6 +1,6 @@
-from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtCore import Qt, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QGuiApplication, QPixmap
-from PyQt6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+from PyQt6.QtWidgets import QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
 from app.core.filters import field_value
 
@@ -17,7 +17,9 @@ def _fmt_age(days: float | None) -> str:
 
 
 class ProductCard(QFrame):
-    def __init__(self, product: dict, parent=None):
+    selected_changed = pyqtSignal(str, bool)  # item_id, đã tích (để đẩy lên Lumi)
+
+    def __init__(self, product: dict, selected: bool = False, pushed: bool = False, parent=None):
         super().__init__(parent)
         self.product = product
         self.setObjectName("productCard")
@@ -26,6 +28,18 @@ class ProductCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(6)
+
+        top = QHBoxLayout()
+        self.select_box = QCheckBox("Chọn")
+        self.select_box.setChecked(selected)
+        self.select_box.toggled.connect(lambda on: self.selected_changed.emit(product["item_id"], on))
+        top.addWidget(self.select_box)
+        top.addStretch(1)
+        if pushed:
+            pushed_label = QLabel("✓ Đã đẩy Lumi")
+            pushed_label.setObjectName("pushedChip")
+            top.addWidget(pushed_label)
+        layout.addLayout(top)
 
         self.image = QLabel("Đang tải ảnh...")
         self.image.setObjectName("cardImage")
